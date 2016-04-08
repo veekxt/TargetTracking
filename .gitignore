@@ -2,3 +2,7 @@
 *.3gp
 *.avi
 *.mkv
+*.swp
+*.png
+a.out
+pic/

@@ -49,6 +49,11 @@ void  Found_people(IplImage *get_imge,CvRect rect)
   
 int main(int argc, char* argv[])  
 {  
+	
+	cvNamedWindow("back",CV_WINDOW_KEEPRATIO);  
+    cvNamedWindow("fore",CV_WINDOW_KEEPRATIO); 
+	cvNamedWindow("ԭͼ",CV_WINDOW_KEEPRATIO);
+	
     CvCapture *capture=NULL;//
 	capture=cvCreateFileCapture("test002.3gp"); 
 	//capture=cvCreateCameraCapture(0);
@@ -216,9 +221,10 @@ int main(int argc, char* argv[])
     }  
       
     free(fg);free(w);free(mean);free(sd);free(u_diff);free(rank);  
-    cvNamedWindow("back",0);  
-    cvNamedWindow("fore",0); 
-	cvNamedWindow("ԭͼ",0);
+    //cvNamedWindow("back",CV_WINDOW_KEEPRATIO);  
+    //cvNamedWindow("fore",CV_WINDOW_KEEPRATIO); 
+	//cvNamedWindow("ԭͼ",CV_WINDOW_KEEPRATIO);
+	
     cvReleaseCapture(&capture);  
     cvDestroyWindow("fore");  
     cvDestroyWindow("back");  
