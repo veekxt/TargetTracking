@@ -429,8 +429,6 @@ int main(int argc,char **argv)
             //imwrite(name,dep);
             //dst = imFillHoles(dst);
             del_small(dst,dst);
-            del_small(dst,dst);
-            del_small(dst,dst);
             imshow("dst",dst);
         }
 
