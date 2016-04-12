@@ -10,7 +10,7 @@ using namespace cv;
 //最小有效区域，低于此面积将被直接认定为噪声点
 double MINAREA = 85.0;
 //使用前多少张图像训练？
-int TRAIN = 50;
+int TRAIN = 53;
 
 
 #define SC1 "ChairBox"
@@ -148,7 +148,7 @@ void del_small(Mat &mask,Mat &dst)
             all_big_area.push_back(idx);//添加到容器中
         }
     }
-    Scalar color(255);//使用白色来输出bgr
+    Scalar color(255);//使用白色来输出
     vector<int>::iterator it;
     for(it=all_big_area.begin(); it!=all_big_area.end(); it++)
         drawContours( dst, contours, *it, color,CV_FILLED, 8, hierarchy );
@@ -209,7 +209,7 @@ void is_fg_com_pre(int i,int j,Mat src,Mat &dst)
         }
     if(1000*s/(w*w)>s_min)
     {
-        dst.at<uchar>(i,j)=127;   //有某些重合部分，判定为前景
+        dst.at<uchar>(i,j)=255;   //有某些重合部分，判定为前景
     }
     //if(dep_pre.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255;
 }
@@ -328,7 +328,7 @@ void del_small2(Mat& mask, Mat& dst)
             largestComp = idx;//找出包含面积最大的轮廓
         }
     }
-    Scalar color( 250, 250, 250 );//使用白色来输出bgr
+    Scalar color( 250, 250, 250 );//使用白色来输出
     drawContours( dst, contours, largestComp, color, CV_FILLED, 8, hierarchy );
 }
 
@@ -385,15 +385,20 @@ int main(int argc,char **argv)
         }
         else if(i>TRAIN)
         {
-            del_small(rgb,rgb);
-            del_small(rgb_pre,rgb_pre);
-            del_small(dep,dep);
-            del_small(dep_pre,dep_pre);
-
             imshow("rgb",rgb);              //rgb图结果
             imshow("dep",dep);              //深度图结果
             imshow("src",src);              //rgb原图
 
+            //del_small(rgb,rgb);
+            //del_small(rgb_pre,rgb_pre);
+            //del_small(dep,dep);
+            //del_small(dep_pre,dep_pre);
+
+            /*
+            imshow("rgb",rgb);              //rgb图结果
+            imshow("dep",dep);              //深度图结果
+            imshow("src",src);              //rgb原图
+            */
             if(!is_light)         //如果不在光照影响期,检查是否光照
             {
                 is_light = is_suddenly_light(rgb,rgb_pre,dep,dep_pre);
@@ -423,7 +428,9 @@ int main(int argc,char **argv)
             //sprintf(name,"target/L_%d.png",myb.i-1);
             //imwrite(name,dep);
             //dst = imFillHoles(dst);
-            //del_small(dst,dst);
+            del_small(dst,dst);
+            del_small(dst,dst);
+            del_small(dst,dst);
             imshow("dst",dst);
         }
 
