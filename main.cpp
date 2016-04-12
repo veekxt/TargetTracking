@@ -13,6 +13,16 @@ double MINAREA = 85.0;
 int TRAIN = 50;
 
 
+#define SC1 "ChairBox"
+#define SC2 "Hallway"
+#define SC3 "Shelves"
+#define SC4 "Wall"
+
+const char *SC(int i)
+{
+    return i==1?SC1:(i==2?SC2:(i==3?SC3:(i==4?SC4:NULL)));
+}
+
 //读取路径和格式有规律的素材
 class MyPicStream
 {
@@ -165,19 +175,19 @@ double getArea(Mat src)
 bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
 {
     double s_rgb,s_rgb_pre,s_dep,s_dep_pre,pro_rgb,pro_dep;
+
     s_rgb = getArea(rgb);
     s_dep = getArea(dep);
     s_rgb_pre = getArea(rgb_pre);
     s_dep_pre = getArea(dep_pre);
 
-    pro_rgb=s_rgb/(s_rgb+s_rgb_pre);
-    pro_dep=s_dep/(s_dep+s_dep_pre);
+    pro_rgb = s_rgb / (s_rgb + s_rgb_pre);
+    pro_dep = s_dep / (s_dep + s_dep_pre);
 
-    if(fabs(pro_rgb - pro_dep)>0.3)//实验得出
+    if(fabs(pro_rgb - pro_dep) > 0.3)//实验得出
     {
         return true;
     }
-
     return false;
 }
 
@@ -226,7 +236,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                     {
                         dst.at<uchar>(i,j)=255; //确定为前景
                     }
-                    else                        //rgb为背景
+                    else                        //rgb为背景，进一步检查
                     {
                         is_fg_com_pre(i,j,dep_pre,dst);
                     }
@@ -320,17 +330,6 @@ void del_small2(Mat& mask, Mat& dst)
     }
     Scalar color( 250, 250, 250 );//使用白色来输出bgr
     drawContours( dst, contours, largestComp, color, CV_FILLED, 8, hierarchy );
-}
-
-
-#define SC1 "ChairBox"
-#define SC2 "Hallway"
-#define SC3 "Shelves"
-#define SC4 "Wall"
-
-const char *SC(int i)
-{
-    return i==1?SC1:(i==2?SC2:(i==3?SC3:(i==4?SC4:NULL)));
 }
 
 int main(int argc,char **argv)
@@ -438,4 +437,7 @@ int main(int argc,char **argv)
     waitKey();
     return 0;
 }
+
 //ToDo :使用滑块来控制速度与其他参数
+//ToDo :小的空洞填充
+//ToDo :轮廓重合检测
