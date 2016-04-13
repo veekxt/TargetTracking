@@ -10,8 +10,9 @@ using namespace cv;
 //最小有效区域，低于此面积将被直接认定为噪声点
 double MINAREA = 85.0;
 //使用前多少张图像训练？
-int TRAIN = 53;
-
+int TRAIN = 30;
+//延时
+int delay_t = 60;
 
 #define SC1 "ChairBox"
 #define SC2 "Hallway"
@@ -127,7 +128,7 @@ void del_small(Mat &mask,Mat &dst)
     erode(temp, temp, Mat(), Point(-1,-1), niters*2);//腐蚀
     dilate(temp, temp, Mat(), Point(-1,-1), niters);
 
-    findContours( temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE );//找轮廓
+    findContours( temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );//找轮廓
 
     dst = Mat::zeros(mask.size(), CV_8UC1);
 
@@ -153,14 +154,72 @@ void del_small(Mat &mask,Mat &dst)
     for(it=all_big_area.begin(); it!=all_big_area.end(); it++)
         drawContours( dst, contours, *it, color,CV_FILLED, 8, hierarchy );
 }
+//结构，轮廓和记录其中一些轮廓的vector
+struct ValidContours{
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;            //分层信息
+    vector<int> valids;
+};
 
-//求一个二值图的前景面积
+//检查两个轮廓的重合率
+//一个轮廓在一个轮廓内部的点所占自身的大小
+//供getValidContours函数使用
+double coincidenceRateContours(vector<Point> a,vector<Point> b)
+{
+    double s=0.0;
+    for(int i=a.size();i>=0;i--)
+    {
+        if(pointPolygonTest(b,Point2f((double)a[i].x,(double)a[i].y),false)>=0)
+        {
+            s=s+1.0;
+        }
+    }
+    return s / (double)a.size();
+}
+
+//根据前一帧和当前帧，判断一个轮廓是否是前景，并返回所有的轮廓和轮廓编号
+struct ValidContours getValidContours(Mat dep,Mat dep_pre)
+{
+    vector<vector<Point> > contours;
+    vector<vector<Point> > contours_pre;
+    vector<Vec4i> hierarchy;
+    vector<Vec4i> hierarchy_pre;
+
+    vector<int> valid;
+
+    //当前帧轮廓
+    findContours( dep.clone(), contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );
+    //前一帧轮廓
+    findContours( dep.clone(), contours_pre, hierarchy_pre, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );
+    //遍历单层轮廓，判断是否重合
+    for(int i=0;i>=0;i=hierarchy[i][0])
+    {
+        if(hierarchy[i][3]<0)   //判断是顶层轮廓，即该轮廓没有父轮廓
+        {
+            for(int j=0;j>=0;j=hierarchy_pre[j][0])     //遍历上一帧的轮廓
+            {
+                if(hierarchy_pre[j][3]<0)
+                {
+                    if(coincidenceRateContours(contours[i],contours_pre[j])>0.5)
+                    {
+                        valid.push_back(i);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    struct ValidContours v={contours,hierarchy,valid};
+    return v;
+}
+
+//求一个二值图的前景面积,用于判断大面积光照
 double getArea(Mat src)
 {
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     Mat src2=src.clone();
-    findContours( src2, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE );
+    findContours( src2, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
     double s=0;
     for(int idx =0 ; idx >= 0; idx = hierarchy[idx][0] )
     {
@@ -184,7 +243,7 @@ bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
     pro_rgb = s_rgb / (s_rgb + s_rgb_pre);
     pro_dep = s_dep / (s_dep + s_dep_pre);
 
-    if(fabs(pro_rgb - pro_dep) > 0.3)//实验得出
+    if(pro_rgb - pro_dep > 0.3)//实验得出
     {
         return true;
     }
@@ -197,16 +256,19 @@ void is_fg_com_pre(int i,int j,Mat src,Mat &dst)
 {
     int w=60;               //设置宽度,决定周围区域的大小
     int s=0;
-    int s_min = 10;         //重合部分最小比例
+    int s_min = 5;         //重合部分最小比例
     int start_x = (i - w/2)<0?0:(i - w/2);
     int start_y = (j - w/2)<0?0:(j - w/2);
     int end_x   = (i + w/2)>src.rows?src.rows:(i + w/2);
     int end_y   = (j + w/2)>src.cols?src.cols:(j + w/2);
     for(; start_x<end_x; start_x++)
+    {
         for(; start_y<end_y; start_y++)
         {
             if(src.at<uchar>(start_x,start_y))s++;
         }
+    }
+
     if(1000*s/(w*w)>s_min)
     {
         dst.at<uchar>(i,j)=255;   //有某些重合部分，判定为前景
@@ -220,6 +282,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
     if(!have_suddenly_light)
     {
         for( int i = 0; i < dep.rows; ++i)
+        {
             for( int j = 0; j < dep.cols; ++j )
             {
                 if(rgb.at<uchar>(i,j)>100)
@@ -242,21 +305,28 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                     }
                 }
             }
+        }
     }
     else
     {
         //突然光照使得rgb结果没有参考价值，这里纯粹使用深度结果
-        //但深度结果噪声太大，所以这里提高del_small的目标大小上限减少一些偏小噪声（note:甚至可以只保留最大值？）
-        //观察发现深度图很多噪声只有一瞬间，因此对于一个区域来说，
+        //深度图很多噪声只有一瞬间，因此对于一个区域来说，
         //前一帧和当前帧的轮廓应该有交集，没有交集可以判定为背景
 
+        //但深度结果噪声太大，所以这里提高del_small的目标大小上限减少一些偏小噪声（note:甚至可以只保留最大值？）
         //也可以不使用del_small，直接判断轮廓交集（？）
         double tmp = MINAREA;   //暂存阈值
-        MINAREA = 250.0;
+        MINAREA = 350.0;
         del_small(dep,dst);
         MINAREA = tmp;          //恢复阈值
 
-        //ToDo:判断轮廓交集
+        //找到dep可用的轮廓
+        struct ValidContours v = getValidContours(dep,dep_pre);
+        //画出可用轮廓
+        for(int i=v.valids.size();i>=0;i--)
+        {
+            drawContours(dst,v.contours,i,Scalar(255),CV_FILLED,8,v.hierarchy);
+        }
     }
 }
 
@@ -272,7 +342,7 @@ Mat imFillHoles(Mat imInput)
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
 
-    findContours(imInput, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+    findContours(imInput, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
     if( !contours.empty() && !hierarchy.empty() )
     {
@@ -308,7 +378,7 @@ void del_small2(Mat& mask, Mat& dst)
     erode(temp, temp, Mat(), Point(-1,-1), niters*2);//腐蚀
     dilate(temp, temp, Mat(), Point(-1,-1), niters);
 
-    findContours( temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE );//找轮廓
+    findContours( temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );//找轮廓
 
     dst = Mat::zeros(mask.size(), CV_8UC1);
 
@@ -334,9 +404,9 @@ void del_small2(Mat& mask, Mat& dst)
 
 int main(int argc,char **argv)
 {
-    int delay_t,scn,start_pic;
+    int scn,start_pic;
     if(argc>1) delay_t = atoi(argv[1]);
-    else delay_t=70;
+    else ;
     if(argc>2) scn = atoi(argv[2]);
     else scn = 1;
     if(argc>3) start_pic = atoi(argv[3]);
@@ -360,7 +430,7 @@ int main(int argc,char **argv)
     const int FIT=20;                    //使用多少张图来适应光照
     int fit = FIT;
     bool is_light=false;
-    double v_rgb=0.003,v_dep=0.0025;    //学习速度
+    double v_rgb=0.003,v_rgb_train=0.003,v_dep=0.0025,v_dep_train=0.009;    //学习速度
     while (!src.empty())
     {
         char key = waitKey(i<51?1:delay_t);
@@ -374,17 +444,21 @@ int main(int argc,char **argv)
             ;
         }
         cout<<"# to "<<myb.i<<" th pic #"<<endl;
-        bgSubtractor(src,rgb,v_rgb);
-        bgSubtractor(src_dep,dep,v_dep);
         if(i<TRAIN)             //训练期间
         {
             i++;
+            bgSubtractor(src,rgb,v_rgb_train);
+            bgSubtractor(src_dep,dep,v_dep_train);
+
             src=myb.getPic();
             src_dep=myf.getPic();
             continue;
         }
         else if(i>TRAIN)
         {
+            bgSubtractor(src,rgb,v_rgb);
+            bgSubtractor(src_dep,dep,v_dep);
+
             imshow("rgb",rgb);              //rgb图结果
             imshow("dep",dep);              //深度图结果
             imshow("src",src);              //rgb原图
@@ -394,11 +468,6 @@ int main(int argc,char **argv)
             //del_small(dep,dep);
             //del_small(dep_pre,dep_pre);
 
-            /*
-            imshow("rgb",rgb);              //rgb图结果
-            imshow("dep",dep);              //深度图结果
-            imshow("src",src);              //rgb原图
-            */
             if(!is_light)         //如果不在光照影响期,检查是否光照
             {
                 is_light = is_suddenly_light(rgb,rgb_pre,dep,dep_pre);
@@ -424,12 +493,17 @@ int main(int argc,char **argv)
             analysis(is_light,rgb,rgb_pre,dep,dep_pre,dst);
             //del_small(dst,dst);
 
-            //char name[20];
-            //sprintf(name,"target/L_%d.png",myb.i-1);
-            //imwrite(name,dep);
             //dst = imFillHoles(dst);
             del_small(dst,dst);
             imshow("dst",dst);
+            //写入文件，先手动建立target文件夹和target/rgb以及target/dep
+            char name[20];
+            sprintf(name,"target/T_%d.png",myb.i-1);
+            imwrite(name,dst);
+            sprintf(name,"target/dep/dep_%d.png",myb.i-1);
+            imwrite(name,dep);
+            sprintf(name,"target/rgb/rgb_%d.png",myb.i-1);
+            imwrite(name,rgb);
         }
 
         rgb_pre=rgb.clone();
@@ -445,4 +519,6 @@ int main(int argc,char **argv)
 
 //ToDo :使用滑块来控制速度与其他参数
 //ToDo :小的空洞填充
-//ToDo :轮廓重合检测
+//ToDo :轮廓重合检测(OK)
+//ToDo :深度图噪声过大
+//ToDo :生成文件以后再遍历文件，因为不同条件下处理效果不一致，影响体验
