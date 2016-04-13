@@ -143,7 +143,7 @@ void del_small(Mat &mask,Mat &dst)
     for( ; idx >= 0; idx = hierarchy[idx][0] )
     {
         const vector<Point>& c = contours[idx];
-        double area = fabs(contourArea(Mat(c)));
+        double area = fabs(contourArea(c));
         if( area > MINAREA )
         {
             all_big_area.push_back(idx);//添加到容器中
@@ -167,7 +167,7 @@ struct ValidContours{
 double coincidenceRateContours(vector<Point> a,vector<Point> b)
 {
     double s=0.0;
-    for(int i=a.size();i>=0;i--)
+    for(int i=a.size()-1;i>=0;i--)
     {
         if(pointPolygonTest(b,Point2f((double)a[i].x,(double)a[i].y),false)>=0)
         {
@@ -323,16 +323,40 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
         //找到dep可用的轮廓
         struct ValidContours v = getValidContours(dep,dep_pre);
         //画出可用轮廓
-        for(int i=v.valids.size();i>=0;i--)
+        for(int i=v.valids.size()-1;i>=0;i--)
         {
             drawContours(dst,v.contours,i,Scalar(255),CV_FILLED,8,v.hierarchy);
         }
     }
 }
+//
+void imSmallHoles(Mat src,Mat &dst)
+{
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    //cout<<"call imHoles"<<endl;
+    //两层轮廓
+    findContours(src.clone(), contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+    //cout<<"call imHoles2"<<endl;
 
+    if( !contours.empty() && !hierarchy.empty() )
+    {
+        for(int i=contours.size()-1;i>=0;i--)
+        {
+            //drawContours( dst, contours, i, Scalar(255),1, 8, hierarchy );
+            //cout<<hierarchy[i][3]<<endl;
+            double area = fabs(contourArea(contours[i]));
+            if(hierarchy[i][3]>=0 && area<270.0)
+            {
+                //cout<<"find !"<<endl;
+                drawContours( dst, contours, i, Scalar(255),CV_FILLED, 8, hierarchy );
+            }
+        }
+    }
+}
 
 //空洞填充
-//note:已弃用，空洞可能是本来就有的，只应去除很小的内部轮廓
+//note:已弃用，空洞可能是本来就有的，只应去除很小的内部轮廓，见imSmallHoles
 //[参考](http://bbs.csdn.net/topics/340140568)
 //[另](http://blog.sina.com.cn/s/blog_79bb01d00101btsq.html)
 Mat imFillHoles(Mat imInput)
@@ -404,6 +428,7 @@ void del_small2(Mat& mask, Mat& dst)
 
 int main(int argc,char **argv)
 {
+    const bool IS_WRITE_TOFILE = 0;//是否写到文件
     int scn,start_pic;
     if(argc>1) delay_t = atoi(argv[1]);
     else ;
@@ -491,19 +516,23 @@ int main(int argc,char **argv)
 
             dst=Mat(src.rows,src.cols,CV_8U,Scalar(0));
             analysis(is_light,rgb,rgb_pre,dep,dep_pre,dst);
-            //del_small(dst,dst);
 
-            //dst = imFillHoles(dst);
-            del_small(dst,dst);
+            del_small(dst,dst);//删除小的点
+            imSmallHoles(dst,dst);//填补内部小空洞
             imshow("dst",dst);
+
             //写入文件，先手动建立target文件夹和target/rgb以及target/dep
-            char name[20];
-            sprintf(name,"target/T_%d.png",myb.i-1);
-            imwrite(name,dst);
-            sprintf(name,"target/dep/dep_%d.png",myb.i-1);
-            imwrite(name,dep);
-            sprintf(name,"target/rgb/rgb_%d.png",myb.i-1);
-            imwrite(name,rgb);
+            if(IS_WRITE_TOFILE)
+            {
+                char name[20];
+                sprintf(name,"target/T_%d.png",myb.i-1);
+                imwrite(name,dst);
+                sprintf(name,"target/dep/dep_%d.png",myb.i-1);
+                imwrite(name,dep);
+                sprintf(name,"target/rgb/rgb_%d.png",myb.i-1);
+                imwrite(name,rgb);
+            }
+
         }
 
         rgb_pre=rgb.clone();
@@ -518,7 +547,7 @@ int main(int argc,char **argv)
 }
 
 //ToDo :使用滑块来控制速度与其他参数
-//ToDo :小的空洞填充
+//ToDo :小的空洞填充(OK)
 //ToDo :轮廓重合检测(OK)
 //ToDo :深度图噪声过大
-//ToDo :生成文件以后再遍历文件，因为不同条件下处理效果不一致，影响体验
+//ToDo :生成文件以后再遍历文件，因为不同条件下处理效果不一致，影响观察体验
