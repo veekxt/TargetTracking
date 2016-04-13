@@ -428,7 +428,7 @@ void del_small2(Mat& mask, Mat& dst)
 
 int main(int argc,char **argv)
 {
-    const bool IS_WRITE_TOFILE = 0;//是否写到文件
+    const bool IS_WRITE_TOFILE = false;//是否写到文件
     int scn,start_pic;
     if(argc>1) delay_t = atoi(argv[1]);
     else ;
