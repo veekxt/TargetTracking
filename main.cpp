@@ -115,7 +115,7 @@ Mat& do_depth_and_normal(Mat &a,Mat &b,Mat &c)
 }
 
 //删除小的噪声点
-void del_small(Mat &mask,Mat &dst)
+void del_small(const Mat mask,Mat &dst)
 {
     int niters = 1;// default :3
 
@@ -190,7 +190,7 @@ struct ValidContours getValidContours(Mat dep,Mat dep_pre)
     //当前帧轮廓
     findContours( dep.clone(), contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );
     //前一帧轮廓
-    findContours( dep.clone(), contours_pre, hierarchy_pre, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );
+    findContours( dep_pre.clone(), contours_pre, hierarchy_pre, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );
     //遍历单层轮廓，判断是否重合
     for(int i=0;i>=0;i=hierarchy[i][0])
     {
@@ -200,7 +200,7 @@ struct ValidContours getValidContours(Mat dep,Mat dep_pre)
             {
                 if(hierarchy_pre[j][3]<0)
                 {
-                    if(coincidenceRateContours(contours[i],contours_pre[j])>0.5)
+                    if(coincidenceRateContours(contours[i],contours_pre[j])>0.3)
                     {
                         valid.push_back(i);
                         break;
@@ -209,6 +209,7 @@ struct ValidContours getValidContours(Mat dep,Mat dep_pre)
             }
         }
     }
+    if(valid.empty())cout<<"None Valid Contours"<<endl;
     struct ValidContours v={contours,hierarchy,valid};
     return v;
 }
@@ -221,10 +222,11 @@ double getArea(Mat src)
     Mat src2=src.clone();
     findContours( src2, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
     double s=0;
+    if(!contours.empty())
     for(int idx =0 ; idx >= 0; idx = hierarchy[idx][0] )
     {
         const vector<Point>& c = contours[idx];
-        double area = fabs(contourArea(Mat(c)));
+        double area = fabs(contourArea(c));
         s+=area;
     }
     return s;
@@ -233,18 +235,24 @@ double getArea(Mat src)
 //判断是否有突然的光照
 bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
 {
-    double s_rgb,s_rgb_pre,s_dep,s_dep_pre,pro_rgb,pro_dep;
+    double s_rgb,s_rgb_pre,s_dep,s_dep_pre,pro_rgb,pro_dep,s_pic;
 
     s_rgb = getArea(rgb);
     s_dep = getArea(dep);
     s_rgb_pre = getArea(rgb_pre);
     s_dep_pre = getArea(dep_pre);
+    s_pic = rgb.rows*rgb.cols;
 
-    pro_rgb = s_rgb / (s_rgb + s_rgb_pre);
-    pro_dep = s_dep / (s_dep + s_dep_pre);
-
-    if(pro_rgb - pro_dep > 0.3)//实验得出
+    if(s_rgb<=2)
     {
+        return false;
+    }
+    pro_rgb = s_rgb / s_pic - s_rgb_pre / s_pic;//s_rgb / (s_rgb + s_rgb_pre);
+    pro_dep = s_dep / s_pic - s_dep_pre / s_pic;//s_dep / (s_dep + s_dep_pre);
+
+    if(pro_rgb >0.5 && pro_rgb - pro_dep > 0.3)//实验得出?
+    {
+        cout<<pro_rgb<<"*"<<pro_rgb - pro_dep<<endl;
         return true;
     }
     return false;
@@ -256,22 +264,30 @@ void is_fg_com_pre(int i,int j,Mat src,Mat &dst)
 {
     int w=60;               //设置宽度,决定周围区域的大小
     int s=0;
-    int s_min = 5;         //重合部分最小比例
+    int s_min = 9;         //重合部分最小比例
     int start_x = (i - w/2)<0?0:(i - w/2);
     int start_y = (j - w/2)<0?0:(j - w/2);
     int end_x   = (i + w/2)>src.rows?src.rows:(i + w/2);
     int end_y   = (j + w/2)>src.cols?src.cols:(j + w/2);
+
+
     for(; start_x<end_x; start_x++)
     {
         for(; start_y<end_y; start_y++)
         {
-            if(src.at<uchar>(start_x,start_y))s++;
+            if(src.at<uchar>(start_x,start_y)>0)s++;
         }
     }
-
-    if(1000*s/(w*w)>s_min)
+    if(1000*s>(w*w)*s_min)
     {
-        dst.at<uchar>(i,j)=255;   //有某些重合部分，判定为前景
+        /*
+        if(s>0)
+        {
+            printf("%d,%d\n%d#%d,%d#%d\n",i,j,start_x,start_y,end_x,end_y);
+            printf("$ %d $\n",s);
+        }
+        */
+        dst.at<uchar>(i,j)=127;   //有某些重合部分，判定为前景
     }
     //if(dep_pre.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255;
 }
@@ -309,24 +325,39 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
     }
     else
     {
+        //使用is_fg_com_pre判断噪声
+        /*
+        for( int i = 0; i < dep.rows; ++i)
+        {
+            for( int j = 0; j < dep.cols; ++j)
+            {
+                if(dep.at<uchar>(i,j)>100)
+                {
+                    is_fg_com_pre(i,j,dep_pre,dst);
+                }
+            }
+        }
+        */
+
+        //update：似乎也可以直接is_fg_com_pre判断，但is_fg_com_pre似乎有bug！
         //突然光照使得rgb结果没有参考价值，这里纯粹使用深度结果
         //深度图很多噪声只有一瞬间，因此对于一个区域来说，
         //前一帧和当前帧的轮廓应该有交集，没有交集可以判定为背景
 
+        //找到dep可用的轮廓
+        struct ValidContours v = getValidContours(dep,dep_pre);
+        //填充可用轮廓
+        for(int i=v.valids.size()-1;i>=0;i--)
+        {
+            drawContours(dst,v.contours,v.valids[i],Scalar(255),CV_FILLED,8,v.hierarchy);
+        }
+
         //但深度结果噪声太大，所以这里提高del_small的目标大小上限减少一些偏小噪声（note:甚至可以只保留最大值？）
         //也可以不使用del_small，直接判断轮廓交集（？）
         double tmp = MINAREA;   //暂存阈值
-        MINAREA = 350.0;
-        del_small(dep,dst);
+        MINAREA = 550.0;
+        del_small(dst,dst);
         MINAREA = tmp;          //恢复阈值
-
-        //找到dep可用的轮廓
-        struct ValidContours v = getValidContours(dep,dep_pre);
-        //画出可用轮廓
-        for(int i=v.valids.size()-1;i>=0;i--)
-        {
-            drawContours(dst,v.contours,i,Scalar(255),CV_FILLED,8,v.hierarchy);
-        }
     }
 }
 //
@@ -415,7 +446,7 @@ void del_small2(Mat& mask, Mat& dst)
     for( ; idx >= 0; idx = hierarchy[idx][0] )
     {
         const vector<Point>& c = contours[idx];
-        double area = fabs(contourArea(Mat(c)));
+        double area = fabs(contourArea(c));
         if( area > maxArea )
         {
             maxArea = area;
@@ -428,7 +459,7 @@ void del_small2(Mat& mask, Mat& dst)
 
 int main(int argc,char **argv)
 {
-    const bool IS_WRITE_TOFILE = 0;//是否写到文件
+    const bool IS_WRITE_TOFILE = true;//是否写到文件
     int scn,start_pic;
     if(argc>1) delay_t = atoi(argv[1]);
     else ;
@@ -452,7 +483,7 @@ int main(int argc,char **argv)
     src=myb.getPic();
     src_dep=myf.getPic();
     int i=0;                            //图片计数
-    const int FIT=10;                    //使用多少张图来适应光照
+    const int FIT=12;                    //使用多少张图来适应光照
     int fit = FIT;
     bool is_light=false;
     double v_rgb=0.003,v_rgb_train=0.003,v_dep=0.0025,v_dep_train=0.009;    //学习速度
@@ -488,9 +519,9 @@ int main(int argc,char **argv)
             imshow("dep",dep);              //深度图结果
             imshow("src",src);              //rgb原图
 
-            //del_small(rgb,rgb);
+            del_small(rgb,rgb);
             //del_small(rgb_pre,rgb_pre);
-            //del_small(dep,dep);
+            del_small(dep,dep);
             //del_small(dep_pre,dep_pre);
 
             if(!is_light)         //如果不在光照影响期,检查是否光照
@@ -517,13 +548,13 @@ int main(int argc,char **argv)
             dst=Mat(src.rows,src.cols,CV_8U,Scalar(0));
             analysis(is_light,rgb,rgb_pre,dep,dep_pre,dst);
 
-            del_small(dst,dst);//删除小的点
+            //del_small(dst,dst);//删除小的点
             imSmallHoles(dst,dst);//填补内部小空洞
             imshow("dst",dst);
 
-            //写入文件，先手动建立target文件夹和target/rgb以及target/dep
             if(IS_WRITE_TOFILE)
             {
+                //写入文件，需要先手动建立target文件夹和target/rgb以及target/dep
                 char name[20];
                 sprintf(name,"target/T_%d.png",myb.i-1);
                 imwrite(name,dst);
