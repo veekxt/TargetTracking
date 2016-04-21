@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdio>
+#include <cmath>
 #include "opencv2/opencv.hpp"
 
 using namespace std;
@@ -29,11 +30,11 @@ class MyPicStream
 {
 private:
 public:
-    int start_num;//初始和结束图片号
+    int start_num;      //初始和结束图片号
     int end_num;
-    int pic_type;//图片类型,1普通rgb ，2深度
-    const char *head;//文件名前缀
-    int i;//当前图片号
+    int pic_type;       //图片类型,1普通rgb ，2深度
+    const char *head;   //文件名前缀
+    int i;              //当前图片号
     MyPicStream(const char *a_head,int a_type,int a_start_num,int a_end_num)
     {
         i=a_start_num;
@@ -51,13 +52,13 @@ public:
             tmp.data=NULL;
             return tmp;
         }
-        char name[50];
-        sprintf(name,"pic/01-%s/%s%s_%s_%d.bmp",
+        char nameBuf[50];
+        sprintf(nameBuf,"pic/01-%s/%s%s_%s_%d.bmp",
                 head,pic_type==2?"/Depth/":"",head,pic_type==1?"L":"disp_kinect",i);
-        Mat target = imread(name);
+        Mat target = imread(nameBuf);
         if(target.empty())
         {
-            cout<<"cant open file:"<<name<<" may to end !"<<endl;
+            cout<<"cant open file:"<<nameBuf<<" may to end !"<<endl;
             waitKey(0);
             exit(1);
         }
@@ -122,7 +123,7 @@ void del_small(const Mat mask,Mat &dst)
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
 
-    Mat temp;
+    Mat temp=mask.clone();
 
     dilate(mask, temp, Mat(), Point(-1,-1), niters);//膨胀，3*3的element，迭代次数为niters
     erode(temp, temp, Mat(), Point(-1,-1), niters*2);//腐蚀
@@ -162,14 +163,14 @@ struct ValidContours{
 };
 
 //检查两个轮廓的重合率
-//一个轮廓在一个轮廓内部的点所占自身的大小
+//一个轮廓在一个轮廓内部的点所占自身的大小，粗略地表达重合面积
 //供getValidContours函数使用
 double coincidenceRateContours(vector<Point> a,vector<Point> b)
 {
     double s=0.0;
     for(int i=a.size()-1;i>=0;i--)
     {
-        if(pointPolygonTest(b,Point2f((double)a[i].x,(double)a[i].y),false)>=0)
+        if(pointPolygonTest(b,Point2f((double)a[i].y,(double)a[i].x),false)>=0)
         {
             s=s+1.0;
         }
@@ -257,14 +258,75 @@ bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
     }
     return false;
 }
+//判断fg或bg的可靠性
+//参数 ：fg还是bg（0或1），坐标，src
+
+/*             w2
+            +--------+---------+
+            |        |         |
+            |     w1 |         |
+            |    +---+---+     |
+            |    |       |     |
+            +----+       +-----+
+            |    +---+---+     |
+            |        |         |
+            |        |         |
+            +--------+---------+
+*/
+bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
+{
+    double w1 = 13.0;
+    double w2 = w1 * sqrt(5);
+    double s = w1 * w1 * 4;
+    int sum[5]={0,0,0,0,0,};
+
+    int start_x = (x0 - w2)<0?0:(x0 - w2);
+    int start_y = (y0 - w2)<0?0:(y0 - w2);
+    int end_x   = (x0 + w2)>src.rows?src.rows:(x0 + w2);
+    int end_y   = (y0 + w2)>src.cols?src.cols:(y0 + w2);
+
+    //cout<<end_x-start_x<<"**"<<end_y-start_y<<"**"<<end_x<<"**"<<end_y<<endl;
+
+    for(int x=start_x; x<end_x; x++)
+    {
+        for(int y=start_y; y<end_y; y++)
+        {
+            //todo:优化分类应该可以减少判断次数
+            bool is_fbg;
+            if(fg_or_bg==0)is_fbg = src.at<uchar>(x,y) > 0?true:false;
+            else is_fbg = src.at<uchar>(x,y) < 200?true:false;
+
+            if     ((x<x0 && y<y0-w1 )||(x<x0-w1 && y<y0)){if(is_fbg)sum[1]++;}
+            else if((x>x0 && y<y0-w1 )||(x>x0+w1 && y<y0)){if(is_fbg)sum[2]++;}
+            else if((x>x0 && y>y0+w1 )||(x>x0+w1 && y>y0)){if(is_fbg)sum[3]++;}
+            else if((x<x0 && y>y0+w1 )||(x<x0-w1 && y>y0)){if(is_fbg)sum[4]++;}
+            else                                          {if(is_fbg)sum[0]++;}
+        }
+    }
+    int tmp=0;
+    for(int i=0;i<5;i++)
+    {
+        if(sum[i]>tmp)
+        {
+            tmp=sum[i];
+        }
+    }
+    if((double)tmp / s >(fg_or_bg==0?0.8 :0.8))
+    {
+        //cout<<sum[0]+sum[1]+sum[2]+sum[3]+sum[4]<<"**"<<tmp<<"**"<<tmp_i<<endl;
+        return true;
+    }
+    return false;
+}
 
 //通过和src对比判断这个点是否为前景，是则写入,rgb=bk,dep=fg时使用
 //参数：坐标、src、dst
+//update:已弃用
 void is_fg_com_pre(int i,int j,Mat src,Mat &dst)
 {
     int w=60;               //设置宽度,决定周围区域的大小
     int s=0;
-    int s_min = 9;         //重合部分最小比例
+    int s_min = 9;          //重合部分最小比例
     int start_x = (i - w/2)<0?0:(i - w/2);
     int start_y = (j - w/2)<0?0:(j - w/2);
     int end_x   = (i + w/2)>src.rows?src.rows:(i + w/2);
@@ -297,6 +359,11 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
 {
     if(!have_suddenly_light)
     {
+        vector<vector<Point> > contours;
+        vector<Vec4i> hierarchy;
+
+        findContours( dep.clone(), contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
+
         for( int i = 0; i < dep.rows; ++i)
         {
             for( int j = 0; j < dep.cols; ++j )
@@ -306,7 +373,16 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                     if(dep.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255; //确定为前景
                     else
                     {
-                        ;//可能是局部的光照和阴影，确定为背景
+                        //可能是局部的光照和阴影
+                        if(!is_fbg_com_pre_2(1,i,j,dep_pre))
+                        {
+                            //如果深度图判定为”背景不可靠“
+                            dst.at<uchar>(i,j) = 255;
+                        }else
+                        {
+                            //如果深度图判定为”背景可靠“，应该是局部光照
+                            //dst.at<uchar>(i,j) = 0;//默认是0，不需要显式赋值
+                        }
                     }
                 }
                 if(dep.at<uchar>(i,j)>100)      //dep为前景
@@ -317,7 +393,23 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                     }
                     else                        //rgb为背景，进一步检查
                     {
-                        is_fg_com_pre(i,j,dep_pre,dst);
+                        if(is_fbg_com_pre_2(0,i,j,dep_pre))
+                        {
+                            //dst.at<uchar>(i,j)=190;
+                            for(int i_c=contours.size()-1;i_c>=0;i_c--)
+                             {
+                                double distance = pointPolygonTest(contours[i_c],Point(j,i),true);
+                                //cout<<abs(distance)<<"<=distance"<<endl;
+                                if((distance >= 6.0))
+                                {
+                                    //cout<<"a point in edge !########"<<endl;
+                                    //cout<<distance<<"-"<<i<<"-"<<j<<endl;
+                                    dst.at<uchar>(i,j)=255;
+                                    break;
+                                }
+                            }
+
+                        }
                     }
                 }
             }
@@ -326,19 +418,22 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
     else
     {
         //使用is_fg_com_pre判断噪声
-        /*
+
         for( int i = 0; i < dep.rows; ++i)
         {
             for( int j = 0; j < dep.cols; ++j)
             {
                 if(dep.at<uchar>(i,j)>100)
                 {
-                    is_fg_com_pre(i,j,dep_pre,dst);
+                    if(is_fbg_com_pre_2(0,i,j,dep_pre))
+                    {
+                        dst.at<uchar>(i,j)=50;
+                    }
                 }
             }
         }
-        */
 
+        /*
         //update：似乎也可以直接is_fg_com_pre判断，但is_fg_com_pre似乎有bug！
         //突然光照使得rgb结果没有参考价值，这里纯粹使用深度结果
         //深度图很多噪声只有一瞬间，因此对于一个区域来说，
@@ -351,11 +446,11 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
         {
             drawContours(dst,v.contours,v.valids[i],Scalar(255),CV_FILLED,8,v.hierarchy);
         }
-
+        */
         //但深度结果噪声太大，所以这里提高del_small的目标大小上限减少一些偏小噪声（note:甚至可以只保留最大值？）
-        //也可以不使用del_small，直接判断轮廓交集（？）
+        //也可以不使用del_small
         double tmp = MINAREA;   //暂存阈值
-        MINAREA = 550.0;
+        MINAREA = 450.0;
         del_small(dst,dst);
         MINAREA = tmp;          //恢复阈值
     }
@@ -457,9 +552,11 @@ void del_small2(Mat& mask, Mat& dst)
     drawContours( dst, contours, largestComp, color, CV_FILLED, 8, hierarchy );
 }
 
+
 int main(int argc,char **argv)
 {
-    const bool IS_WRITE_TOFILE = true;//是否写到文件
+    const bool IS_WRITE_TOFILE = 1;//是否写到文件
+    const bool IS_SHOW = 0;//是否显示
     int scn,start_pic;
     if(argc>1) delay_t = atoi(argv[1]);
     else ;
@@ -514,11 +611,12 @@ int main(int argc,char **argv)
         {
             bgSubtractor(src,rgb,v_rgb);
             bgSubtractor(src_dep,dep,v_dep);
-
-            imshow("rgb",rgb);              //rgb图结果
-            imshow("dep",dep);              //深度图结果
-            imshow("src",src);              //rgb原图
-
+            if(IS_SHOW)
+            {
+                imshow("rgb",rgb);              //rgb图结果
+                imshow("dep",dep);              //深度图结果
+                imshow("src",src);              //rgb原图
+            }
             del_small(rgb,rgb);
             //del_small(rgb_pre,rgb_pre);
             del_small(dep,dep);
@@ -550,11 +648,11 @@ int main(int argc,char **argv)
 
             //del_small(dst,dst);//删除小的点
             imSmallHoles(dst,dst);//填补内部小空洞
-            imshow("dst",dst);
+            if(IS_SHOW)imshow("dst",dst);
 
             if(IS_WRITE_TOFILE)
             {
-                //写入文件，需要先手动建立target文件夹和target/rgb以及target/dep
+                //写入文件，需要先手动建立target文件夹和target/rgb以及target/dep两个子文件夹
                 char name[20];
                 sprintf(name,"target/T_%d.png",myb.i-1);
                 imwrite(name,dst);
@@ -563,9 +661,7 @@ int main(int argc,char **argv)
                 sprintf(name,"target/rgb/rgb_%d.png",myb.i-1);
                 imwrite(name,rgb);
             }
-
         }
-
         rgb_pre=rgb.clone();
         dep_pre=dep.clone();
         src=myb.getPic();
@@ -580,9 +676,9 @@ int main(int argc,char **argv)
 //ToDo :使用滑块来控制速度与其他参数
 //ToDo :小的空洞填充(OK)
 //ToDo :轮廓重合检测(OK)
-//ToDo :深度图噪声过大
-//ToDo :生成文件以后再遍历文件，因为不同条件下处理效果不一致，影响观察体验
-
+//ToDo :深度图噪声过大(?)
+//ToDo :生成文件以后再遍历文件，因为不同条件下处理速度不一致，影响观察体验
+//Issue:边缘问题，局部光照/阴影
 /*
 
 //流程图
