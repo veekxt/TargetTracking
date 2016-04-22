@@ -13,7 +13,7 @@ double MINAREA = 85.0;
 //使用前多少张图像训练？
 int TRAIN = 30;
 //延时
-int delay_t = 60;
+int delay_t = 1;
 
 #define SC1 "ChairBox"
 #define SC2 "Hallway"
@@ -67,54 +67,6 @@ public:
     };
 };
 
-
-//参考深度处理结果和正常结果（a、b） 产生新的结果（c）
-//note :已经弃用
-Mat& do_depth_and_normal(Mat &a,Mat &b,Mat &c)
-{
-    CV_Assert(a.depth() != sizeof(uchar));
-    const int channels = a.channels();
-    switch(channels)
-    {
-    case 1:
-    {
-        //三个迭代器分别迭代a、b、c
-        MatIterator_<uchar> itA, Aend;
-        MatIterator_<uchar> itB, Bend;
-        MatIterator_<uchar> itC, Cend;
-
-        for( itA = a.begin<uchar>(),Aend = a.end<uchar>(),
-                itB = b.begin<uchar>(),Bend = b.end<uchar>(),
-                itC = c.begin<uchar>(),Cend = c.end<uchar>();
-                itA != Aend;
-                ++itA,++itB,++itC )
-        {
-            //处理
-            //note  ：
-            //简单并：填补空洞但是增加噪声
-            //简单交：减少噪声但增加空洞
-            if(*itA>127 || *itB>127)
-                *itC = 255;
-            else *itC = 0;
-        }
-        break;
-    }
-        /*
-        case 3:
-        {
-            MatIterator_<Vec3b> it, end;
-            for( it = b.begin<Vec3b>(), end = b.end<Vec3b>(); it != end; ++it)
-            {
-                (*it)[0] = table_a[(*it)[0]];
-                (*it)[1] = table_a[(*it)[1]];
-                (*it)[2] = table_a[(*it)[2]];
-            }
-        }
-        */
-    }
-    return c;
-}
-
 //删除小的噪声点
 void del_small(const Mat mask,Mat &dst)
 {
@@ -124,6 +76,7 @@ void del_small(const Mat mask,Mat &dst)
     vector<Vec4i> hierarchy;
 
     Mat temp=mask.clone();
+    threshold(temp,temp,200,255,THRESH_BINARY);
 
     dilate(mask, temp, Mat(), Point(-1,-1), niters);//膨胀，3*3的element，迭代次数为niters
     erode(temp, temp, Mat(), Point(-1,-1), niters*2);//腐蚀
@@ -150,69 +103,10 @@ void del_small(const Mat mask,Mat &dst)
             all_big_area.push_back(idx);//添加到容器中
         }
     }
-    Scalar color(255);//使用白色来输出
+    Scalar color(255);//输出的颜色
     vector<int>::iterator it;
     for(it=all_big_area.begin(); it!=all_big_area.end(); it++)
         drawContours( dst, contours, *it, color,CV_FILLED, 8, hierarchy );
-}
-//结构，轮廓和记录其中一些轮廓的vector
-struct ValidContours{
-    vector<vector<Point> > contours;
-    vector<Vec4i> hierarchy;            //分层信息
-    vector<int> valids;
-};
-
-//检查两个轮廓的重合率
-//一个轮廓在一个轮廓内部的点所占自身的大小，粗略地表达重合面积
-//供getValidContours函数使用
-double coincidenceRateContours(vector<Point> a,vector<Point> b)
-{
-    double s=0.0;
-    for(int i=a.size()-1;i>=0;i--)
-    {
-        if(pointPolygonTest(b,Point2f((double)a[i].y,(double)a[i].x),false)>=0)
-        {
-            s=s+1.0;
-        }
-    }
-    return s / (double)a.size();
-}
-
-//根据前一帧和当前帧，判断一个轮廓是否是前景，并返回所有的轮廓和轮廓编号
-struct ValidContours getValidContours(Mat dep,Mat dep_pre)
-{
-    vector<vector<Point> > contours;
-    vector<vector<Point> > contours_pre;
-    vector<Vec4i> hierarchy;
-    vector<Vec4i> hierarchy_pre;
-
-    vector<int> valid;
-
-    //当前帧轮廓
-    findContours( dep.clone(), contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );
-    //前一帧轮廓
-    findContours( dep_pre.clone(), contours_pre, hierarchy_pre, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );
-    //遍历单层轮廓，判断是否重合
-    for(int i=0;i>=0;i=hierarchy[i][0])
-    {
-        if(hierarchy[i][3]<0)   //判断是顶层轮廓，即该轮廓没有父轮廓
-        {
-            for(int j=0;j>=0;j=hierarchy_pre[j][0])     //遍历上一帧的轮廓
-            {
-                if(hierarchy_pre[j][3]<0)
-                {
-                    if(coincidenceRateContours(contours[i],contours_pre[j])>0.3)
-                    {
-                        valid.push_back(i);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    if(valid.empty())cout<<"None Valid Contours"<<endl;
-    struct ValidContours v={contours,hierarchy,valid};
-    return v;
 }
 
 //求一个二值图的前景面积,用于判断大面积光照
@@ -260,8 +154,9 @@ bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
 }
 //判断fg或bg的可靠性
 //参数 ：fg还是bg（0或1），坐标，src
-
-/*             w2
+bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
+{
+    /*         w2
             +--------+---------+
             |        |         |
             |     w1 |         |
@@ -272,9 +167,7 @@ bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
             |        |         |
             |        |         |
             +--------+---------+
-*/
-bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
-{
+    */
     double w1 = 13.0;
     double w2 = w1 * sqrt(5);
     double s = w1 * w1 * 4;
@@ -319,41 +212,6 @@ bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
     return false;
 }
 
-//通过和src对比判断这个点是否为前景，是则写入,rgb=bk,dep=fg时使用
-//参数：坐标、src、dst
-//update:已弃用
-void is_fg_com_pre(int i,int j,Mat src,Mat &dst)
-{
-    int w=60;               //设置宽度,决定周围区域的大小
-    int s=0;
-    int s_min = 9;          //重合部分最小比例
-    int start_x = (i - w/2)<0?0:(i - w/2);
-    int start_y = (j - w/2)<0?0:(j - w/2);
-    int end_x   = (i + w/2)>src.rows?src.rows:(i + w/2);
-    int end_y   = (j + w/2)>src.cols?src.cols:(j + w/2);
-
-
-    for(; start_x<end_x; start_x++)
-    {
-        for(; start_y<end_y; start_y++)
-        {
-            if(src.at<uchar>(start_x,start_y)>0)s++;
-        }
-    }
-    if(1000*s>(w*w)*s_min)
-    {
-        /*
-        if(s>0)
-        {
-            printf("%d,%d\n%d#%d,%d#%d\n",i,j,start_x,start_y,end_x,end_y);
-            printf("$ %d $\n",s);
-        }
-        */
-        dst.at<uchar>(i,j)=127;   //有某些重合部分，判定为前景
-    }
-    //if(dep_pre.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255;
-}
-
 //分析4个输入图，产生新图
 void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,Mat &dst)
 {
@@ -368,7 +226,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
         {
             for( int j = 0; j < dep.cols; ++j )
             {
-                if(rgb.at<uchar>(i,j)>100)
+                if(rgb.at<uchar>(i,j)==250)
                 {
                     if(dep.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255; //确定为前景
                     else
@@ -387,7 +245,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                 }
                 if(dep.at<uchar>(i,j)>100)      //dep为前景
                 {
-                    if(rgb.at<uchar>(i,j)>100)  //rgb也为前景
+                    if(rgb.at<uchar>(i,j)==255)  //rgb也为前景
                     {
                         dst.at<uchar>(i,j)=255; //确定为前景
                     }
@@ -427,7 +285,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                 {
                     if(is_fbg_com_pre_2(0,i,j,dep_pre))
                     {
-                        dst.at<uchar>(i,j)=50;
+                        dst.at<uchar>(i,j)=255;
                     }
                 }
             }
@@ -455,7 +313,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
         MINAREA = tmp;          //恢复阈值
     }
 }
-//
+
 void imSmallHoles(Mat src,Mat &dst)
 {
     vector<vector<Point> > contours;
@@ -481,82 +339,10 @@ void imSmallHoles(Mat src,Mat &dst)
     }
 }
 
-//空洞填充
-//note:已弃用，空洞可能是本来就有的，只应去除很小的内部轮廓，见imSmallHoles
-//[参考](http://bbs.csdn.net/topics/340140568)
-//[另](http://blog.sina.com.cn/s/blog_79bb01d00101btsq.html)
-Mat imFillHoles(Mat imInput)
-{
-    Mat imShow = Mat::zeros(imInput.size(),CV_8UC3);    // for show result
-
-    vector<vector<Point> > contours;
-    vector<Vec4i> hierarchy;
-
-    findContours(imInput, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-
-    if( !contours.empty() && !hierarchy.empty() )
-    {
-        for (unsigned int idx=0; idx < contours.size(); idx++)
-        {
-            drawContours(imShow,contours,idx,Scalar::all(255),CV_FILLED,8);
-        }
-    }
-
-    Mat imFilledHoles;
-    cvtColor(imShow,imFilledHoles,CV_BGR2GRAY);
-    imFilledHoles = imFilledHoles > 0;
-
-    imShow.release();
-
-    return imFilledHoles;
-}
-
-//去除小的噪声点(寻找最大的目标)
-//note:弃用，见 del_small()
-//[参考](http://www.cnblogs.com/tornadomeet/archive/2012/06/02/2531705.html)
-//参数：原始32 img（只需要它的大小） 8位img 目标img
-void del_small2(Mat& mask, Mat& dst)
-{
-    int niters = 1;// default :3
-
-    vector<vector<Point> > contours;
-    vector<Vec4i> hierarchy;
-
-    Mat temp;
-
-    dilate(mask, temp, Mat(), Point(-1,-1), niters);//膨胀，3*3的element，迭代次数为niters
-    erode(temp, temp, Mat(), Point(-1,-1), niters*2);//腐蚀
-    dilate(temp, temp, Mat(), Point(-1,-1), niters);
-
-    findContours( temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );//找轮廓
-
-    dst = Mat::zeros(mask.size(), CV_8UC1);
-
-    if( contours.size() == 0 )
-        return;
-
-    int idx = 0, largestComp = 0;
-    double maxArea = 0;
-
-    for( ; idx >= 0; idx = hierarchy[idx][0] )
-    {
-        const vector<Point>& c = contours[idx];
-        double area = fabs(contourArea(c));
-        if( area > maxArea )
-        {
-            maxArea = area;
-            largestComp = idx;//找出包含面积最大的轮廓
-        }
-    }
-    Scalar color( 250, 250, 250 );//使用白色来输出
-    drawContours( dst, contours, largestComp, color, CV_FILLED, 8, hierarchy );
-}
-
-
 int main(int argc,char **argv)
 {
-    const bool IS_WRITE_TOFILE = 1;//是否写到文件
-    const bool IS_SHOW = 0;//是否显示
+    const bool IS_WRITE_TOFILE = 0;//是否写到文件
+    const bool IS_SHOW = 1;//是否显示
     int scn,start_pic;
     if(argc>1) delay_t = atoi(argv[1]);
     else ;
@@ -570,12 +356,13 @@ int main(int argc,char **argv)
 
     //ToDo ：使用自己实现的的GMM算法
     BackgroundSubtractorMOG2 bgSubtractor(30,16,true);
-
-    //namedWindow("picgmm",CV_WINDOW_NORMAL);
-    //namedWindow("picgmm_depth",CV_WINDOW_NORMAL);
-    //namedWindow("src",CV_WINDOW_NORMAL);
-    //namedWindow("tar",CV_WINDOW_NORMAL);
-
+    if(IS_SHOW)
+    {
+        namedWindow("src",CV_WINDOW_NORMAL);
+        namedWindow("rgb",CV_WINDOW_NORMAL);
+        namedWindow("dep",CV_WINDOW_NORMAL);
+        namedWindow("target",CV_WINDOW_NORMAL);
+    }
     Mat src,src_dep,rgb,dep,rgb_pre,dep_pre,dst;
     src=myb.getPic();
     src_dep=myf.getPic();
@@ -648,7 +435,7 @@ int main(int argc,char **argv)
 
             //del_small(dst,dst);//删除小的点
             imSmallHoles(dst,dst);//填补内部小空洞
-            if(IS_SHOW)imshow("dst",dst);
+            if(IS_SHOW)imshow("target",dst);
 
             if(IS_WRITE_TOFILE)
             {
