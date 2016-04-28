@@ -59,10 +59,10 @@ public:
         if(target.empty())
         {
             cout<<"cant open file:"<<nameBuf<<" may to end !"<<endl;
-            waitKey(0);
-            exit(1);
+            Mat tmp;
+            tmp.data=NULL;
+            return tmp;
         }
-
         return target;
     };
 };
@@ -337,25 +337,8 @@ void imSmallHoles(Mat src,Mat &dst)
     }
 }
 
-int main(int argc,char **argv)
+int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bool IS_SHOW)
 {
-    //是否写到文件
-    //需要先手动建立target文件夹和target/rgb以及target/dep两个子文件夹
-    const bool IS_WRITE_TOFILE = 1;
-    //是否显示
-    const bool IS_SHOW = 1;
-    int scn,start_pic;
-    /**
-    * 3个命令行参数
-    * 延时；第几个素材；从第几帧开始
-    */
-    if(argc>1) delay_t = atoi(argv[1]);
-    else ;
-    if(argc>2) scn = atoi(argv[2]);
-    else scn = 1;
-    if(argc>3) start_pic = atoi(argv[3]);
-    else start_pic = 150;
-
     MyPicStream myb = MyPicStream(SC(scn),1,start_pic,600);
     MyPicStream myf = MyPicStream(SC(scn),2,start_pic,600);
 
@@ -448,11 +431,11 @@ int main(int argc,char **argv)
             if(IS_WRITE_TOFILE)
             {
                 char name[20];
-                sprintf(name,"target/T_%d.png",myb.i-1);
+                sprintf(name,"target_%d/T_%d.png",scn,myb.i-1);
                 imwrite(name,dst);
-                sprintf(name,"target/dep/dep_%d.png",myb.i-1);
+                sprintf(name,"target_%d/dep/dep_%d.png",scn,myb.i-1);
                 imwrite(name,dep);
-                sprintf(name,"target/rgb/rgb_%d.png",myb.i-1);
+                sprintf(name,"target_%d/rgb/rgb_%d.png",scn,myb.i-1);
                 imwrite(name,rgb);
             }
         }
@@ -462,7 +445,41 @@ int main(int argc,char **argv)
         src_dep=myf.getPic();
         i++;
     }
-    puts("end");
+    puts("end one");
+    return 0;
+}
+
+int main(int argc,char **argv)
+{
+    //是否写到文件
+    //需要先手动建立target_n文件夹和target_n/rgb以及target_n/dep两个子文件夹
+    //上面的n替换成素材编号比如target_1
+    const bool IS_WRITE_TOFILE = 1;
+    //是否显示
+    const bool IS_SHOW = 0;
+
+    int scn,start_pic;
+    /**
+    * 3个命令行参数
+    * 延时；第几个素材；从第几帧开始
+    */
+    if(argc>1) delay_t = atoi(argv[1]);
+    else ;
+    if(argc>2) scn = atoi(argv[2]);
+    else scn = 1;
+    if(argc>3) start_pic = atoi(argv[3]);
+    else start_pic = 150;
+
+    add_depth_gmm_test(delay_t,scn,start_pic,IS_WRITE_TOFILE,IS_SHOW);
+    /*
+    * 对4个素材的图片处理并保存到文件中
+    */
+    /*
+    add_depth_gmm_test(1,1,1,1,0);
+    add_depth_gmm_test(1,2,1,1,0);
+    add_depth_gmm_test(1,3,1,1,0);
+    add_depth_gmm_test(1,4,1,1,0);
+    */
     waitKey();
     return 0;
 }
