@@ -11,7 +11,7 @@ using namespace cv;
 //最小有效区域，低于此面积将被直接认定为噪声点
 double MINAREA = 85.0;
 //使用前多少张图像训练？
-int TRAIN = 30;
+int TRAIN = 5;
 //延时
 int delay_t = 1;
 
@@ -196,15 +196,15 @@ bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
             else                                          {if(is_fbg)sum[0]++;}
         }
     }
-    int tmp=0;
-    for(int i=0;i<5;i++)
+    int tmp=sum[0];
+    for(int i=1;i<5;i++)
     {
         if(sum[i]>tmp)
         {
             tmp=sum[i];
         }
     }
-    if((double)tmp / s >(fg_or_bg==0?0.8 :0.8))
+    if((double)tmp / s >(fg_or_bg==0?0.7 :0.8))
     {
         //cout<<sum[0]+sum[1]+sum[2]+sum[3]+sum[4]<<"**"<<tmp<<"**"<<tmp_i<<endl;
         return true;
@@ -258,7 +258,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                              {
                                 double distance = pointPolygonTest(contours[i_c],Point(j,i),true);
                                 //cout<<abs(distance)<<"<=distance"<<endl;
-                                if((distance >= 6.0))
+                                if((distance >= 10.0))
                                 {
                                     //cout<<"a point in edge !########"<<endl;
                                     //cout<<distance<<"-"<<i<<"-"<<j<<endl;
@@ -266,7 +266,6 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                                     break;
                                 }
                             }
-
                         }
                     }
                 }
@@ -341,9 +340,16 @@ void imSmallHoles(Mat src,Mat &dst)
 
 int main(int argc,char **argv)
 {
-    const bool IS_WRITE_TOFILE = 0;//是否写到文件
-    const bool IS_SHOW = 1;//是否显示
+    //是否写到文件
+    //需要先手动建立target文件夹和target/rgb以及target/dep两个子文件夹
+    const bool IS_WRITE_TOFILE = 1;
+    //是否显示
+    const bool IS_SHOW = 0;
     int scn,start_pic;
+    /**
+    * 3个命令行参数
+    * 延时；第几个素材；从第几帧开始
+    */
     if(argc>1) delay_t = atoi(argv[1]);
     else ;
     if(argc>2) scn = atoi(argv[2]);
@@ -356,7 +362,9 @@ int main(int argc,char **argv)
 
     //ToDo ：使用自己实现的的GMM算法
     BackgroundSubtractorMOG2 bgSubtractor(30,16,true);
-    if(IS_SHOW)
+    BackgroundSubtractorMOG2 bgSubtractor_dep(30,16,true);
+    //先建立窗口以实现窗口的拖放（CV_WINDOW_NORMAL）
+    if(0 && IS_SHOW)
     {
         namedWindow("src",CV_WINDOW_NORMAL);
         namedWindow("rgb",CV_WINDOW_NORMAL);
@@ -370,7 +378,7 @@ int main(int argc,char **argv)
     const int FIT=12;                    //使用多少张图来适应光照
     int fit = FIT;
     bool is_light=false;
-    double v_rgb=0.003,v_rgb_train=0.003,v_dep=0.0025,v_dep_train=0.009;    //学习速度
+    double v_rgb=0.001,v_rgb_train=0.003,v_dep=0.001,v_dep_train=0.009;    //学习速度
     while (!src.empty())
     {
         char key = waitKey(i<51?1:delay_t);
@@ -388,7 +396,7 @@ int main(int argc,char **argv)
         {
             i++;
             bgSubtractor(src,rgb,v_rgb_train);
-            bgSubtractor(src_dep,dep,v_dep_train);
+            bgSubtractor_dep(src_dep,dep,v_dep_train);
 
             src=myb.getPic();
             src_dep=myf.getPic();
@@ -397,7 +405,7 @@ int main(int argc,char **argv)
         else if(i>TRAIN)
         {
             bgSubtractor(src,rgb,v_rgb);
-            bgSubtractor(src_dep,dep,v_dep);
+            bgSubtractor_dep(src_dep,dep,v_dep);
             if(IS_SHOW)
             {
                 imshow("rgb",rgb);              //rgb图结果
@@ -433,13 +441,12 @@ int main(int argc,char **argv)
             dst=Mat(src.rows,src.cols,CV_8U,Scalar(0));
             analysis(is_light,rgb,rgb_pre,dep,dep_pre,dst);
 
-            //del_small(dst,dst);//删除小的点
+            del_small(dst,dst);//删除小的点
             imSmallHoles(dst,dst);//填补内部小空洞
             if(IS_SHOW)imshow("target",dst);
 
             if(IS_WRITE_TOFILE)
             {
-                //写入文件，需要先手动建立target文件夹和target/rgb以及target/dep两个子文件夹
                 char name[20];
                 sprintf(name,"target/T_%d.png",myb.i-1);
                 imwrite(name,dst);
