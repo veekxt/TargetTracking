@@ -76,9 +76,8 @@ void del_small(const Mat mask,Mat &dst)
     vector<Vec4i> hierarchy;
 
     Mat temp=mask.clone();
-    threshold(temp,temp,200,255,THRESH_BINARY);
 
-    dilate(mask, temp, Mat(), Point(-1,-1), niters);//膨胀，3*3的element，迭代次数为niters
+    dilate(temp, temp, Mat(), Point(-1,-1), niters);//膨胀，3*3的element，迭代次数为niters
     erode(temp, temp, Mat(), Point(-1,-1), niters*2);//腐蚀
     dilate(temp, temp, Mat(), Point(-1,-1), niters);
 
@@ -344,7 +343,7 @@ int main(int argc,char **argv)
     //需要先手动建立target文件夹和target/rgb以及target/dep两个子文件夹
     const bool IS_WRITE_TOFILE = 1;
     //是否显示
-    const bool IS_SHOW = 0;
+    const bool IS_SHOW = 1;
     int scn,start_pic;
     /**
     * 3个命令行参数
@@ -406,17 +405,18 @@ int main(int argc,char **argv)
         {
             bgSubtractor(src,rgb,v_rgb);
             bgSubtractor_dep(src_dep,dep,v_dep);
+            threshold(rgb,rgb,200,255,THRESH_BINARY);
+            threshold(dep,dep,0,255,THRESH_BINARY);
             if(IS_SHOW)
             {
                 imshow("rgb",rgb);              //rgb图结果
                 imshow("dep",dep);              //深度图结果
                 imshow("src",src);              //rgb原图
             }
-            del_small(rgb,rgb);
+            //del_small(rgb,rgb);
             //del_small(rgb_pre,rgb_pre);
-            del_small(dep,dep);
+            //del_small(dep,dep);
             //del_small(dep_pre,dep_pre);
-
             if(!is_light)         //如果不在光照影响期,检查是否光照
             {
                 is_light = is_suddenly_light(rgb,rgb_pre,dep,dep_pre);
