@@ -339,8 +339,8 @@ void imSmallHoles(Mat src,Mat &dst)
 
 int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bool IS_SHOW)
 {
-    MyPicStream myb = MyPicStream(SC(scn),1,start_pic,600);
-    MyPicStream myf = MyPicStream(SC(scn),2,start_pic,600);
+    MyPicStream myb = MyPicStream(SC(scn),1,start_pic,500);
+    MyPicStream myf = MyPicStream(SC(scn),2,start_pic,500);
 
     //ToDo ：使用自己实现的的GMM算法
     BackgroundSubtractorMOG2 bgSubtractor(30,16,true);
@@ -431,11 +431,11 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
             if(IS_WRITE_TOFILE)
             {
                 char name[20];
-                sprintf(name,"target_%d/T_%d.png",scn,myb.i-1);
+                sprintf(name,"target%d/T_%d.png",scn,myb.i-1);
                 imwrite(name,dst);
-                sprintf(name,"target_%d/dep/dep_%d.png",scn,myb.i-1);
+                sprintf(name,"target%d/dep/dep_%d.png",scn,myb.i-1);
                 imwrite(name,dep);
-                sprintf(name,"target_%d/rgb/rgb_%d.png",scn,myb.i-1);
+                sprintf(name,"target%d/rgb/rgb_%d.png",scn,myb.i-1);
                 imwrite(name,rgb);
             }
         }
@@ -452,8 +452,8 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
 int main(int argc,char **argv)
 {
     //是否写到文件
-    //需要先手动建立target_n文件夹和target_n/rgb以及target_n/dep两个子文件夹
-    //上面的n替换成素材编号比如target_1
+    //需要先手动建立target<n>文件夹和target<n>/rgb以及target<n>/dep两个子文件夹
+    //上面的<n>替换成素材编号比如target1
     const bool IS_WRITE_TOFILE = 1;
     //是否显示
     const bool IS_SHOW = 0;
