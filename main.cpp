@@ -11,9 +11,14 @@ using namespace cv;
 //最小有效区域，低于此面积将被直接认定为噪声点
 double MINAREA = 85.0;
 //使用前多少张图像训练？
-int TRAIN = 5;
+int TRAIN = 10;
 //延时
 int delay_t = 1;
+
+enum scene{
+    SCE_NORMAL,
+    SCE_NOT_LIGHT,
+};
 
 #define SC1 "ChairBox"
 #define SC2 "Hallway"
@@ -212,7 +217,7 @@ bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
 }
 
 //分析4个输入图，产生新图
-void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,Mat &dst)
+void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,Mat &dst,enum scene S)
 {
     if(!have_suddenly_light)
     {
@@ -225,8 +230,14 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
         {
             for( int j = 0; j < dep.cols; ++j )
             {
-                if(rgb.at<uchar>(i,j)==250)
+                if(rgb.at<uchar>(i,j)==255)
                 {
+                    //如果场景被设置为无光照,将直接可信
+                    if(S==SCE_NOT_LIGHT)
+                    {
+                        dst.at<uchar>(i,j) = 255;
+                        continue;
+                    }
                     if(dep.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255; //确定为前景
                     else
                     {
@@ -257,7 +268,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                              {
                                 double distance = pointPolygonTest(contours[i_c],Point(j,i),true);
                                 //cout<<abs(distance)<<"<=distance"<<endl;
-                                if((distance >= 10.0))
+                                if((distance >= 9.0))
                                 {
                                     //cout<<"a point in edge !########"<<endl;
                                     //cout<<distance<<"-"<<i<<"-"<<j<<endl;
@@ -337,14 +348,14 @@ void imSmallHoles(Mat src,Mat &dst)
     }
 }
 
-int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bool IS_SHOW)
+int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bool IS_SHOW,enum scene S,double v_rgb)
 {
     MyPicStream myb = MyPicStream(SC(scn),1,start_pic,500);
     MyPicStream myf = MyPicStream(SC(scn),2,start_pic,500);
 
     //ToDo ：使用自己实现的的GMM算法
-    BackgroundSubtractorMOG2 bgSubtractor(30,16,true);
-    BackgroundSubtractorMOG2 bgSubtractor_dep(30,16,true);
+    BackgroundSubtractorMOG2 bgSubtractor(10,16,true);
+    BackgroundSubtractorMOG2 bgSubtractor_dep(10,16,true);
     //先建立窗口以实现窗口的拖放（CV_WINDOW_NORMAL）
     if(0 && IS_SHOW)
     {
@@ -360,10 +371,11 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
     const int FIT=12;                    //使用多少张图来适应光照
     int fit = FIT;
     bool is_light=false;
-    double v_rgb=0.001,v_rgb_train=0.003,v_dep=0.001,v_dep_train=0.009;    //学习速度
+    double v_rgb_s=v_rgb;
+    double v_rgb_n=v_rgb_s,v_rgb_train=0.003,v_dep=0.001,v_dep_train=0.009;    //学习速度
     while (!src.empty())
     {
-        char key = waitKey(i<51?1:delay_t);
+        char key = waitKey(i<TRAIN?1:delay_t);
         switch(key)
         {
         //空格键暂停
@@ -386,10 +398,13 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
         }
         else if(i>TRAIN)
         {
-            bgSubtractor(src,rgb,v_rgb);
+            bgSubtractor(src,rgb,v_rgb_n);
             bgSubtractor_dep(src_dep,dep,v_dep);
+
+            //阴影直接删除
             threshold(rgb,rgb,200,255,THRESH_BINARY);
             threshold(dep,dep,0,255,THRESH_BINARY);
+
             if(IS_SHOW)
             {
                 imshow("rgb",rgb);              //rgb图结果
@@ -405,7 +420,7 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
                 is_light = is_suddenly_light(rgb,rgb_pre,dep,dep_pre);
                 if(is_light)
                 {
-                    v_rgb=0.01;    //加快学习速度
+                    v_rgb_n=0.01;    //加快学习速度
                     cout<<"sudenly light !"<<endl;
                 }
             }
@@ -416,13 +431,14 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
                 {
                     is_light=false;
                     fit=FIT;
-                    v_rgb=0.003;   //复原学习速度
+                    v_rgb=v_rgb;   //复原学习速度
                     cout<<"light fit end !"<<endl;
                 }
             }
 
             dst=Mat(src.rows,src.cols,CV_8U,Scalar(0));
-            analysis(is_light,rgb,rgb_pre,dep,dep_pre,dst);
+            //del_isolated(rgb,dep);
+            analysis(is_light,rgb,rgb_pre,dep,dep_pre,dst,S);
 
             del_small(dst,dst);//删除小的点
             imSmallHoles(dst,dst);//填补内部小空洞
@@ -470,16 +486,17 @@ int main(int argc,char **argv)
     if(argc>3) start_pic = atoi(argv[3]);
     else start_pic = 150;
 
-    add_depth_gmm_test(delay_t,scn,start_pic,IS_WRITE_TOFILE,IS_SHOW);
+    //add_depth_gmm_test(delay_t,scn,start_pic,IS_WRITE_TOFILE,IS_SHOW,SCE_NOT_LIGHT);
+    //add_depth_gmm_test(1,1,1,1,1,SCE_NORMAL,0.003);
     /*
     * 对4个素材的图片处理并保存到文件中
     */
-    /*
-    add_depth_gmm_test(1,1,1,1,0);
-    add_depth_gmm_test(1,2,1,1,0);
-    add_depth_gmm_test(1,3,1,1,0);
-    add_depth_gmm_test(1,4,1,1,0);
-    */
+
+    add_depth_gmm_test(1,1,1,1,0,SCE_NORMAL,0.003);
+    add_depth_gmm_test(1,2,1,1,0,SCE_NORMAL,0.003);
+    add_depth_gmm_test(1,3,1,1,0,SCE_NORMAL,0.003);
+    add_depth_gmm_test(1,4,1,1,0,SCE_NOT_LIGHT,0.001);
+
     waitKey();
     return 0;
 }
