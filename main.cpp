@@ -72,6 +72,49 @@ public:
     };
 };
 
+//读取路径和格式有规律的素材
+class MyDemo
+{
+private:
+public:
+    int start_num;      //初始和结束图片号
+    int end_num;
+    int pic_type;       //图片类型,1普通rgb ，2深度
+    int number;
+    int i;              //当前图片号
+    MyDemo(int a_number,int a_start_num,int a_end_num)
+    {
+        number=a_number;
+        i=a_start_num;
+        start_num=a_start_num;
+        end_num=a_end_num;
+    };
+
+    Mat getPic(int pic_type)
+    {
+        //i++;
+        if(i>end_num)
+        {
+            Mat tmp;
+            tmp.data=NULL;
+            return tmp;
+        }
+        char nameBuf[50];
+        sprintf(nameBuf,"target%d%s/%s_%d.png",
+                number,pic_type==2?"/rgb":(pic_type==3?"/dep":""),pic_type==2?"rgb":(pic_type==3?"dep":"T"),i);
+        Mat target = imread(nameBuf);
+        if(target.empty())
+        {
+            cout<<"cant open file:"<<nameBuf<<" may to end !"<<endl;
+            Mat tmp;
+            tmp.data=NULL;
+            return tmp;
+        }
+        return target;
+    };
+};
+
+
 //删除小的噪声点
 void del_small(const Mat mask,Mat &dst)
 {
@@ -465,6 +508,25 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
     return 0;
 }
 
+void demo(int n)
+{
+    MyDemo m = MyDemo(1,200,500);
+    for(int i=m.start_num;i<=m.end_num;i++){
+        imshow("target",m.getPic(1));
+        imshow("rgb",m.getPic(2));
+        imshow("dep",m.getPic(3));
+        m.i++;
+        switch(waitKey(60))
+        {
+        //空格键暂停
+        case ' ':
+            waitKey(0);
+        default:
+            ;
+        }
+    }
+}
+
 int main(int argc,char **argv)
 {
     //是否写到文件
@@ -491,12 +553,13 @@ int main(int argc,char **argv)
     /*
     * 对4个素材的图片处理并保存到文件中
     */
-
+/*
     add_depth_gmm_test(1,1,1,1,0,SCE_NORMAL,0.003);
     add_depth_gmm_test(1,2,1,1,0,SCE_NORMAL,0.003);
     add_depth_gmm_test(1,3,1,1,0,SCE_NORMAL,0.003);
     add_depth_gmm_test(1,4,1,1,0,SCE_NOT_LIGHT,0.001);
-
+*/
+    demo(1);
     waitKey();
     return 0;
 }
