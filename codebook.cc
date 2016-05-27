@@ -6,15 +6,15 @@
 using namespace std;
 using namespace cv;
 
-//----------------- ½áºÏÏà¹Ø-----------------//
+//----------------- ç»“åˆç›¸å…³-----------------//
 
-//Ò»Ğ©³£Á¿¶¨Òå£¬µ«ÊÇ¿ÉÄÜÒª¶¯Ì¬ĞŞ¸Ä£¬ÈÔÉùÃ÷Îª±äÁ¿
+//ä¸€äº›å¸¸é‡å®šä¹‰ï¼Œä½†æ˜¯å¯èƒ½è¦åŠ¨æ€ä¿®æ”¹ï¼Œä»å£°æ˜ä¸ºå˜é‡
 
-//×îĞ¡ÓĞĞ§ÇøÓò£¬µÍÓÚ´ËÃæ»ı½«±»Ö±½ÓÈÏ¶¨ÎªÔëÉùµã
+//æœ€å°æœ‰æ•ˆåŒºåŸŸï¼Œä½äºæ­¤é¢ç§¯å°†è¢«ç›´æ¥è®¤å®šä¸ºå™ªå£°ç‚¹
 double MINAREA = 85.0;
-//Ê¹ÓÃÇ°¶àÉÙÕÅÍ¼ÏñÑµÁ·£¿
+//ä½¿ç”¨å‰å¤šå°‘å¼ å›¾åƒè®­ç»ƒï¼Ÿ
 int TRAIN = 10;
-//ÑÓÊ±
+//å»¶æ—¶
 int delay_t = 1;
 
 enum scene{
@@ -32,16 +32,16 @@ const char *SC(int i)
     return i==1?SC1:(i==2?SC2:(i==3?SC3:(i==4?SC4:NULL)));
 }
 
-//¶ÁÈ¡Â·¾¶ºÍ¸ñÊ½ÓĞ¹æÂÉµÄËØ²Ä
+//è¯»å–è·¯å¾„å’Œæ ¼å¼æœ‰è§„å¾‹çš„ç´ æ
 class MyPicStream
 {
 private:
 public:
-    int start_num;      //³õÊ¼ºÍ½áÊøÍ¼Æ¬ºÅ
+    int start_num;      //åˆå§‹å’Œç»“æŸå›¾ç‰‡å·
     int end_num;
-    int pic_type;       //Í¼Æ¬ÀàĞÍ,1ÆÕÍ¨rgb £¬2Éî¶È
-    const char *head;   //ÎÄ¼şÃûÇ°×º
-    int i;              //µ±Ç°Í¼Æ¬ºÅ
+    int pic_type;       //å›¾ç‰‡ç±»å‹,1æ™®é€šrgb ï¼Œ2æ·±åº¦
+    const char *head;   //æ–‡ä»¶åå‰ç¼€
+    int i;              //å½“å‰å›¾ç‰‡å·
     MyPicStream(const char *a_head,int a_type,int a_start_num,int a_end_num)
     {
         i=a_start_num;
@@ -74,7 +74,7 @@ public:
     };
 };
 
-//É¾³ıĞ¡µÄÔëÉùµã
+//åˆ é™¤å°çš„å™ªå£°ç‚¹
 void del_small(const Mat mask,Mat &dst)
 {
     int niters = 1;// default :3
@@ -84,11 +84,11 @@ void del_small(const Mat mask,Mat &dst)
 
     Mat temp=mask.clone();
 
-    dilate(temp, temp, Mat(), Point(-1,-1), niters);//ÅòÕÍ£¬3*3µÄelement£¬µü´ú´ÎÊıÎªniters
-    erode(temp, temp, Mat(), Point(-1,-1), niters*2);//¸¯Ê´
+    dilate(temp, temp, Mat(), Point(-1,-1), niters);//è†¨èƒ€ï¼Œ3*3çš„elementï¼Œè¿­ä»£æ¬¡æ•°ä¸ºniters
+    erode(temp, temp, Mat(), Point(-1,-1), niters*2);//è…èš€
     dilate(temp, temp, Mat(), Point(-1,-1), niters);
 
-    findContours( temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );//ÕÒÂÖÀª
+    findContours( temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );//æ‰¾è½®å»“
 
     dst = Mat::zeros(mask.size(), CV_8UC1);
 
@@ -97,7 +97,7 @@ void del_small(const Mat mask,Mat &dst)
 
     int idx = 0 ;
 
-    //Ê¹ÓÃÈİÆ÷±£´æ·ûºÏÌõ¼şµÄÇøÓò
+    //ä½¿ç”¨å®¹å™¨ä¿å­˜ç¬¦åˆæ¡ä»¶çš„åŒºåŸŸ
     vector<int> all_big_area;
 
     for( ; idx >= 0; idx = hierarchy[idx][0] )
@@ -106,16 +106,16 @@ void del_small(const Mat mask,Mat &dst)
         double area = fabs(contourArea(c));
         if( area > MINAREA )
         {
-            all_big_area.push_back(idx);//Ìí¼Óµ½ÈİÆ÷ÖĞ
+            all_big_area.push_back(idx);//æ·»åŠ åˆ°å®¹å™¨ä¸­
         }
     }
-    Scalar color(255);//Êä³öµÄÑÕÉ«
+    Scalar color(255);//è¾“å‡ºçš„é¢œè‰²
     vector<int>::iterator it;
     for(it=all_big_area.begin(); it!=all_big_area.end(); it++)
         drawContours( dst, contours, *it, color,CV_FILLED, 8, hierarchy );
 }
 
-//ÇóÒ»¸ö¶şÖµÍ¼µÄÇ°¾°Ãæ»ı,ÓÃÓÚÅĞ¶Ï´óÃæ»ı¹âÕÕ
+//æ±‚ä¸€ä¸ªäºŒå€¼å›¾çš„å‰æ™¯é¢ç§¯,ç”¨äºåˆ¤æ–­å¤§é¢ç§¯å…‰ç…§
 double getArea(Mat src)
 {
     vector<vector<Point> > contours;
@@ -133,7 +133,7 @@ double getArea(Mat src)
     return s;
 }
 
-//ÅĞ¶ÏÊÇ·ñÓĞÍ»È»µÄ¹âÕÕ
+//åˆ¤æ–­æ˜¯å¦æœ‰çªç„¶çš„å…‰ç…§
 bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
 {
     double s_rgb,s_rgb_pre,s_dep,s_dep_pre,pro_rgb,pro_dep,s_pic;
@@ -151,15 +151,15 @@ bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
     pro_rgb = s_rgb / s_pic - s_rgb_pre / s_pic;//s_rgb / (s_rgb + s_rgb_pre);
     pro_dep = s_dep / s_pic - s_dep_pre / s_pic;//s_dep / (s_dep + s_dep_pre);
 
-    if(pro_rgb >0.5 && pro_rgb - pro_dep > 0.3)//ÊµÑéµÃ³ö?
+    if(pro_rgb >0.5 && pro_rgb - pro_dep > 0.3)//å®éªŒå¾—å‡º?
     {
         cout<<pro_rgb<<"*"<<pro_rgb - pro_dep<<endl;
         return true;
     }
     return false;
 }
-//ÅĞ¶Ïfg»òbgµÄ¿É¿¿ĞÔ
-//²ÎÊı £ºfg»¹ÊÇbg£¨0»ò1£©£¬×ø±ê£¬src
+//åˆ¤æ–­fgæˆ–bgçš„å¯é æ€§
+//å‚æ•° ï¼šfgè¿˜æ˜¯bgï¼ˆ0æˆ–1ï¼‰ï¼Œåæ ‡ï¼Œsrc
 bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
 {
     /*         w2
@@ -190,7 +190,7 @@ bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
     {
         for(int y=start_y; y<end_y; y++)
         {
-            //todo:ÓÅ»¯·ÖÀàÓ¦¸Ã¿ÉÒÔ¼õÉÙÅĞ¶Ï´ÎÊı
+            //todo:ä¼˜åŒ–åˆ†ç±»åº”è¯¥å¯ä»¥å‡å°‘åˆ¤æ–­æ¬¡æ•°
             bool is_fbg;
             if(fg_or_bg==0)is_fbg = src.at<uchar>(x,y) > 0?true:false;
             else is_fbg = src.at<uchar>(x,y) < 200?true:false;
@@ -218,7 +218,7 @@ bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
     return false;
 }
 
-//·ÖÎö4¸öÊäÈëÍ¼£¬²úÉúĞÂÍ¼
+//åˆ†æ4ä¸ªè¾“å…¥å›¾ï¼Œäº§ç”Ÿæ–°å›¾
 void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,Mat &dst,enum scene S)
 {
     if(!have_suddenly_light)
@@ -234,34 +234,34 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
             {
                 if(rgb.at<uchar>(i,j)==255)
                 {
-                    //Èç¹û³¡¾°±»ÉèÖÃÎªÎŞ¹âÕÕ,½«Ö±½Ó¿ÉĞÅ
+                    //å¦‚æœåœºæ™¯è¢«è®¾ç½®ä¸ºæ— å…‰ç…§,å°†ç›´æ¥å¯ä¿¡
                     if(S==SCE_NOT_LIGHT)
                     {
                         dst.at<uchar>(i,j) = 255;
                         continue;
                     }
-                    if(dep.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255; //È·¶¨ÎªÇ°¾°
+                    if(dep.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255; //ç¡®å®šä¸ºå‰æ™¯
                     else
                     {
-                        //¿ÉÄÜÊÇ¾Ö²¿µÄ¹âÕÕºÍÒõÓ°
+                        //å¯èƒ½æ˜¯å±€éƒ¨çš„å…‰ç…§å’Œé˜´å½±
                         if(!is_fbg_com_pre_2(1,i,j,dep_pre))
                         {
-                            //Èç¹ûÉî¶ÈÍ¼ÅĞ¶¨Îª¡±±³¾°²»¿É¿¿¡°
+                            //å¦‚æœæ·±åº¦å›¾åˆ¤å®šä¸ºâ€èƒŒæ™¯ä¸å¯é â€œ
                             dst.at<uchar>(i,j) = 255;
                         }else
                         {
-                            //Èç¹ûÉî¶ÈÍ¼ÅĞ¶¨Îª¡±±³¾°¿É¿¿¡°£¬Ó¦¸ÃÊÇ¾Ö²¿¹âÕÕ
-                            //dst.at<uchar>(i,j) = 0;//Ä¬ÈÏÊÇ0£¬²»ĞèÒªÏÔÊ½¸³Öµ
+                            //å¦‚æœæ·±åº¦å›¾åˆ¤å®šä¸ºâ€èƒŒæ™¯å¯é â€œï¼Œåº”è¯¥æ˜¯å±€éƒ¨å…‰ç…§
+                            //dst.at<uchar>(i,j) = 0;//é»˜è®¤æ˜¯0ï¼Œä¸éœ€è¦æ˜¾å¼èµ‹å€¼
                         }
                     }
                 }
-                if(dep.at<uchar>(i,j)>100)      //depÎªÇ°¾°
+                if(dep.at<uchar>(i,j)>100)      //depä¸ºå‰æ™¯
                 {
-                    if(rgb.at<uchar>(i,j)==255)  //rgbÒ²ÎªÇ°¾°
+                    if(rgb.at<uchar>(i,j)==255)  //rgbä¹Ÿä¸ºå‰æ™¯
                     {
-                        dst.at<uchar>(i,j)=255; //È·¶¨ÎªÇ°¾°
+                        dst.at<uchar>(i,j)=255; //ç¡®å®šä¸ºå‰æ™¯
                     }
-                    else                        //rgbÎª±³¾°£¬½øÒ»²½¼ì²é
+                    else                        //rgbä¸ºèƒŒæ™¯ï¼Œè¿›ä¸€æ­¥æ£€æŸ¥
                     {
                         if(is_fbg_com_pre_2(0,i,j,dep_pre))
                         {
@@ -270,7 +270,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                              {
                                 double distance = pointPolygonTest(contours[i_c],Point(j,i),true);
                                 //cout<<abs(distance)<<"<=distance"<<endl;
-                                if((distance >= 9.0))
+                                if((distance >= 15.0))
                                 {
                                     //cout<<"a point in edge !########"<<endl;
                                     //cout<<distance<<"-"<<i<<"-"<<j<<endl;
@@ -286,7 +286,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
     }
     else
     {
-        //Ê¹ÓÃis_fg_com_preÅĞ¶ÏÔëÉù
+        //ä½¿ç”¨is_fg_com_preåˆ¤æ–­å™ªå£°
 
         for( int i = 0; i < dep.rows; ++i)
         {
@@ -303,25 +303,25 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
         }
 
         /*
-        //update£ºËÆºõÒ²¿ÉÒÔÖ±½Óis_fg_com_preÅĞ¶Ï£¬µ«is_fg_com_preËÆºõÓĞbug£¡
-        //Í»È»¹âÕÕÊ¹µÃrgb½á¹ûÃ»ÓĞ²Î¿¼¼ÛÖµ£¬ÕâÀï´¿´âÊ¹ÓÃÉî¶È½á¹û
-        //Éî¶ÈÍ¼ºÜ¶àÔëÉùÖ»ÓĞÒ»Ë²¼ä£¬Òò´Ë¶ÔÓÚÒ»¸öÇøÓòÀ´Ëµ£¬
-        //Ç°Ò»Ö¡ºÍµ±Ç°Ö¡µÄÂÖÀªÓ¦¸ÃÓĞ½»¼¯£¬Ã»ÓĞ½»¼¯¿ÉÒÔÅĞ¶¨Îª±³¾°
+        //updateï¼šä¼¼ä¹ä¹Ÿå¯ä»¥ç›´æ¥is_fg_com_preåˆ¤æ–­ï¼Œä½†is_fg_com_preä¼¼ä¹æœ‰bugï¼
+        //çªç„¶å…‰ç…§ä½¿å¾—rgbç»“æœæ²¡æœ‰å‚è€ƒä»·å€¼ï¼Œè¿™é‡Œçº¯ç²¹ä½¿ç”¨æ·±åº¦ç»“æœ
+        //æ·±åº¦å›¾å¾ˆå¤šå™ªå£°åªæœ‰ä¸€ç¬é—´ï¼Œå› æ­¤å¯¹äºä¸€ä¸ªåŒºåŸŸæ¥è¯´ï¼Œ
+        //å‰ä¸€å¸§å’Œå½“å‰å¸§çš„è½®å»“åº”è¯¥æœ‰äº¤é›†ï¼Œæ²¡æœ‰äº¤é›†å¯ä»¥åˆ¤å®šä¸ºèƒŒæ™¯
 
-        //ÕÒµ½dep¿ÉÓÃµÄÂÖÀª
+        //æ‰¾åˆ°depå¯ç”¨çš„è½®å»“
         struct ValidContours v = getValidContours(dep,dep_pre);
-        //Ìî³ä¿ÉÓÃÂÖÀª
+        //å¡«å……å¯ç”¨è½®å»“
         for(int i=v.valids.size()-1;i>=0;i--)
         {
             drawContours(dst,v.contours,v.valids[i],Scalar(255),CV_FILLED,8,v.hierarchy);
         }
         */
-        //µ«Éî¶È½á¹ûÔëÉùÌ«´ó£¬ËùÒÔÕâÀïÌá¸ßdel_smallµÄÄ¿±ê´óĞ¡ÉÏÏŞ¼õÉÙÒ»Ğ©Æ«Ğ¡ÔëÉù£¨note:ÉõÖÁ¿ÉÒÔÖ»±£Áô×î´óÖµ£¿£©
-        //Ò²¿ÉÒÔ²»Ê¹ÓÃdel_small
-        double tmp = MINAREA;   //Ôİ´æãĞÖµ
+        //ä½†æ·±åº¦ç»“æœå™ªå£°å¤ªå¤§ï¼Œæ‰€ä»¥è¿™é‡Œæé«˜del_smallçš„ç›®æ ‡å¤§å°ä¸Šé™å‡å°‘ä¸€äº›åå°å™ªå£°ï¼ˆnote:ç”šè‡³å¯ä»¥åªä¿ç•™æœ€å¤§å€¼ï¼Ÿï¼‰
+        //ä¹Ÿå¯ä»¥ä¸ä½¿ç”¨del_small
+        double tmp = MINAREA;   //æš‚å­˜é˜ˆå€¼
         MINAREA = 450.0;
         del_small(dst,dst);
-        MINAREA = tmp;          //»Ö¸´ãĞÖµ
+        MINAREA = tmp;          //æ¢å¤é˜ˆå€¼
     }
 }
 
@@ -330,7 +330,7 @@ void imSmallHoles(Mat src,Mat &dst)
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     //cout<<"call imHoles"<<endl;
-    //Á½²ãÂÖÀª
+    //ä¸¤å±‚è½®å»“
     findContours(src.clone(), contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
     //cout<<"call imHoles2"<<endl;
 
@@ -355,10 +355,10 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
     MyPicStream myb = MyPicStream(SC(scn),1,start_pic,500);
     MyPicStream myf = MyPicStream(SC(scn),2,start_pic,500);
 
-    //ToDo £ºÊ¹ÓÃ×Ô¼ºÊµÏÖµÄµÄGMMËã·¨
+    //ToDo ï¼šä½¿ç”¨è‡ªå·±å®ç°çš„çš„GMMç®—æ³•
     BackgroundSubtractorMOG2 bgSubtractor(10,16,true);
     BackgroundSubtractorMOG2 bgSubtractor_dep(10,16,true);
-    //ÏÈ½¨Á¢´°¿ÚÒÔÊµÏÖ´°¿ÚµÄÍÏ·Å£¨CV_WINDOW_NORMAL£©
+    //å…ˆå»ºç«‹çª—å£ä»¥å®ç°çª—å£çš„æ‹–æ”¾ï¼ˆCV_WINDOW_NORMALï¼‰
     if(0 && IS_SHOW)
     {
         namedWindow("src",CV_WINDOW_NORMAL);
@@ -369,18 +369,18 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
     Mat src,src_dep,rgb,dep,rgb_pre,dep_pre,dst;
     src=myb.getPic();
     src_dep=myf.getPic();
-    int i=0;                            //Í¼Æ¬¼ÆÊı
-    const int FIT=12;                    //Ê¹ÓÃ¶àÉÙÕÅÍ¼À´ÊÊÓ¦¹âÕÕ
+    int i=0;                            //å›¾ç‰‡è®¡æ•°
+    const int FIT=12;                    //ä½¿ç”¨å¤šå°‘å¼ å›¾æ¥é€‚åº”å…‰ç…§
     int fit = FIT;
     bool is_light=false;
     double v_rgb_s=v_rgb;
-    double v_rgb_n=v_rgb_s,v_rgb_train=0.003,v_dep=0.001,v_dep_train=0.009;    //Ñ§Ï°ËÙ¶È
+    double v_rgb_n=v_rgb_s,v_rgb_train=0.003,v_dep=0.001,v_dep_train=0.009;    //å­¦ä¹ é€Ÿåº¦
     while (!src.empty())
     {
         char key = waitKey(i<TRAIN?1:delay_t);
         switch(key)
         {
-        //¿Õ¸ñ¼üÔİÍ£
+        //ç©ºæ ¼é”®æš‚åœ
         case ' ':
             waitKey(0);
             break;
@@ -388,7 +388,7 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
             ;
         }
         cout<<"# to "<<myb.i<<" th pic #"<<endl;
-        if(i<TRAIN)             //ÑµÁ·ÆÚ¼ä
+        if(i<TRAIN)             //è®­ç»ƒæœŸé—´
         {
             i++;
             bgSubtractor(src,rgb,v_rgb_train);
@@ -403,37 +403,37 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
             bgSubtractor(src,rgb,v_rgb_n);
             bgSubtractor_dep(src_dep,dep,v_dep);
 
-            //ÒõÓ°Ö±½ÓÉ¾³ı
+            //é˜´å½±ç›´æ¥åˆ é™¤
             threshold(rgb,rgb,200,255,THRESH_BINARY);
             threshold(dep,dep,0,255,THRESH_BINARY);
 
             if(IS_SHOW)
             {
-                imshow("rgb",rgb);              //rgbÍ¼½á¹û
-                imshow("dep",dep);              //Éî¶ÈÍ¼½á¹û
-                imshow("src",src);              //rgbÔ­Í¼
+                imshow("rgb",rgb);              //rgbå›¾ç»“æœ
+                imshow("dep",dep);              //æ·±åº¦å›¾ç»“æœ
+                imshow("src",src);              //rgbåŸå›¾
             }
             //del_small(rgb,rgb);
             //del_small(rgb_pre,rgb_pre);
             //del_small(dep,dep);
             //del_small(dep_pre,dep_pre);
-            if(!is_light)         //Èç¹û²»ÔÚ¹âÕÕÓ°ÏìÆÚ,¼ì²éÊÇ·ñ¹âÕÕ
+            if(!is_light)         //å¦‚æœä¸åœ¨å…‰ç…§å½±å“æœŸ,æ£€æŸ¥æ˜¯å¦å…‰ç…§
             {
                 is_light = is_suddenly_light(rgb,rgb_pre,dep,dep_pre);
                 if(is_light)
                 {
-                    v_rgb_n=0.01;    //¼Ó¿ìÑ§Ï°ËÙ¶È
+                    v_rgb_n=0.01;    //åŠ å¿«å­¦ä¹ é€Ÿåº¦
                     cout<<"sudenly light !"<<endl;
                 }
             }
-            else                  //ÕıÔÚ¹âÕÕÓ°ÏìÆÚ
+            else                  //æ­£åœ¨å…‰ç…§å½±å“æœŸ
             {
                 fit--;
-                if(fit==0)        //fit¼õµ½ÁãËµÃ÷ÊÊÓ¦½áÊø
+                if(fit==0)        //fitå‡åˆ°é›¶è¯´æ˜é€‚åº”ç»“æŸ
                 {
                     is_light=false;
                     fit=FIT;
-                    v_rgb=v_rgb;   //¸´Ô­Ñ§Ï°ËÙ¶È
+                    v_rgb=v_rgb;   //å¤åŸå­¦ä¹ é€Ÿåº¦
                     cout<<"light fit end !"<<endl;
                 }
             }
@@ -442,8 +442,8 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
             //del_isolated(rgb,dep);
             analysis(is_light,rgb,rgb_pre,dep,dep_pre,dst,S);
 
-            del_small(dst,dst);//É¾³ıĞ¡µÄµã
-            imSmallHoles(dst,dst);//Ìî²¹ÄÚ²¿Ğ¡¿Õ¶´
+            del_small(dst,dst);//åˆ é™¤å°çš„ç‚¹
+            imSmallHoles(dst,dst);//å¡«è¡¥å†…éƒ¨å°ç©ºæ´
             if(IS_SHOW)imshow("target",dst);
 
             if(IS_WRITE_TOFILE)
@@ -467,7 +467,7 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
     return 0;
 }
 
-//----------------±àÂë±¾Ïà¹Ø-----------------//
+//----------------ç¼–ç æœ¬ç›¸å…³-----------------//
 #define CHANNELS 3
 typedef struct ce{
     uchar learnHigh[CHANNELS];
@@ -516,19 +516,19 @@ IplImage *mat2ipl(Mat src)
 //      cvBounds must be of size cvBounds[numChannels]
 //
 // RETURN
-//  codebook index    ¸üĞÂÂë±¾
+//  codebook index    æ›´æ–°ç æœ¬
 
 int update_codebook(uchar* p,codeBook &c, unsigned* cbBounds, int numChannels)
 {
-    if(c.numEntries==0)c.t=0;    //Âë±¾ÖĞÂëÔªÊıÎª0³õÊ¼»¯Ê±¼äÎª0
-    c.t+=1;                        //Ã¿µ÷ÓÃÒ»´ÎÊ±¼äÊı¼Ó1
+    if(c.numEntries==0)c.t=0;    //ç æœ¬ä¸­ç å…ƒæ•°ä¸º0åˆå§‹åŒ–æ—¶é—´ä¸º0
+    c.t+=1;                        //æ¯è°ƒç”¨ä¸€æ¬¡æ—¶é—´æ•°åŠ 1
 
     int n;
     unsigned int high[3],low[3];
     for(n=0;n<numChannels;n++)
     {
-        //¼Ó¼õcbBonds×÷Îª´ËÏñËØãĞÖµÉÏÏÂ½ç
-        high[n]=*(p+n) + *(cbBounds+n);        //Ö±½ÓÊ¹ÓÃÖ¸Õë²Ù×÷¸ü¿ì
+        //åŠ å‡cbBondsä½œä¸ºæ­¤åƒç´ é˜ˆå€¼ä¸Šä¸‹ç•Œ
+        high[n]=*(p+n) + *(cbBounds+n);        //ç›´æ¥ä½¿ç”¨æŒ‡é’ˆæ“ä½œæ›´å¿«
         if(high[n]>255)    high[n]=255;
         low[n]=*(p+n)-*(cbBounds+n);
         if(low[n]<0)  low[n]=0;
@@ -548,8 +548,8 @@ int update_codebook(uchar* p,codeBook &c, unsigned* cbBounds, int numChannels)
         }
         if(matchChannel==numChannels)
         {
-            c.cb[i]->t_last_update=c.t;      //¸üĞÂÂëÔªÊ±¼ä
-            for(n=0;n<numChannels;n++)         //µ÷ÕûÂëÔª¸÷Í¨µÀ×î´ó×îĞ¡Öµ
+            c.cb[i]->t_last_update=c.t;      //æ›´æ–°ç å…ƒæ—¶é—´
+            for(n=0;n<numChannels;n++)         //è°ƒæ•´ç å…ƒå„é€šé“æœ€å¤§æœ€å°å€¼
             {
                 if(c.cb[i]->max[n]<*(p+n))
                     c.cb[i]->max[n]=*(p+n);
@@ -560,7 +560,7 @@ int update_codebook(uchar* p,codeBook &c, unsigned* cbBounds, int numChannels)
         }
     }
 
-    //ÏñËØp²»Âú×ãÂë±¾ÖĞÈÎºÎÒ»¸öÂëÔª,´´½¨Ò»¸öĞÂÂëÔª
+    //åƒç´ pä¸æ»¡è¶³ç æœ¬ä¸­ä»»ä½•ä¸€ä¸ªç å…ƒ,åˆ›å»ºä¸€ä¸ªæ–°ç å…ƒ
     if(i == c.numEntries)
     {
         code_element **foo=new code_element*[c.numEntries+1];
@@ -581,7 +581,7 @@ int update_codebook(uchar* p,codeBook &c, unsigned* cbBounds, int numChannels)
         c.numEntries += 1;
     }
 
-    //¼ÆËãÂëÔªÉÏ´Î¸üĞÂµ½ÏÖÔÚµÄÊ±¼ä
+    //è®¡ç®—ç å…ƒä¸Šæ¬¡æ›´æ–°åˆ°ç°åœ¨çš„æ—¶é—´
     for(int s=0; s<c.numEntries; s++)
     {
         int negRun=c.t-c.cb[s]->t_last_update;
@@ -589,7 +589,7 @@ int update_codebook(uchar* p,codeBook &c, unsigned* cbBounds, int numChannels)
             c.cb[s]->stale = negRun;
     }
 
-    //Èç¹ûÏñËØÍ¨µÀÖµÔÚ¸ßµÍãĞÖµÄÚ,µ«ÔÚÂëÔªãĞÖµÖ®Íâ,Ôò»ºÂıµ÷Õû´ËÂëÔªÑ§Ï°½çÏŞ(max,minÏàµ±ÓÚÍâÇ½,´Öµ÷;learnHigh,learnLowÏàµ±ÓÚÄÚÇ½,Ï¸µ÷)
+    //å¦‚æœåƒç´ é€šé“å€¼åœ¨é«˜ä½é˜ˆå€¼å†…,ä½†åœ¨ç å…ƒé˜ˆå€¼ä¹‹å¤–,åˆ™ç¼“æ…¢è°ƒæ•´æ­¤ç å…ƒå­¦ä¹ ç•Œé™(max,minç›¸å½“äºå¤–å¢™,ç²—è°ƒ;learnHigh,learnLowç›¸å½“äºå†…å¢™,ç»†è°ƒ)
     for(n=0; n<numChannels; n++)
     {
         if(c.cb[i]->learnHigh[n]<high[n])
@@ -601,19 +601,19 @@ int update_codebook(uchar* p,codeBook &c, unsigned* cbBounds, int numChannels)
     return i;
 }
 
-// É¾³ıÒ»¶¨Ê±¼äÄÚÎ´·ÃÎÊµÄÂëÔª,±ÜÃâÑ§Ï°ÔëÉùµÄcodebook
+// åˆ é™¤ä¸€å®šæ—¶é—´å†…æœªè®¿é—®çš„ç å…ƒ,é¿å…å­¦ä¹ å™ªå£°çš„codebook
 int cvclearStaleEntries(codeBook &c)
 {
-    int staleThresh=c.t>>1;                //Éè¶¨Ë¢ĞÂÊ±¼ä
+    int staleThresh=c.t>>1;                //è®¾å®šåˆ·æ–°æ—¶é—´
     int *keep=new int[c.numEntries];
-    int keepCnt=0;                        //¼ÇÂ¼²»É¾³ıÂëÔªÂëÔªÊıÄ¿
+    int keepCnt=0;                        //è®°å½•ä¸åˆ é™¤ç å…ƒç å…ƒæ•°ç›®
     for(int i=0; i<c.numEntries; i++)
     {
         if(c.cb[i]->stale > staleThresh)
-            keep[i]=0;        //±£Áô±êÖ¾·û
+            keep[i]=0;        //ä¿ç•™æ ‡å¿—ç¬¦
         else
         {
-            keep[i]=1;        //É¾³ı±êÖ¾·û
+            keep[i]=1;        //åˆ é™¤æ ‡å¿—ç¬¦
             keepCnt+=1;
         }
     }
@@ -637,7 +637,7 @@ int cvclearStaleEntries(codeBook &c)
     c.cb=foo;
     int numCleared=c.numEntries-keepCnt;
     c.numEntries=keepCnt;
-    return numCleared;      //·µ»ØÉ¾³ıµÄÂëÔª
+    return numCleared;      //è¿”å›åˆ é™¤çš„ç å…ƒ
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -654,7 +654,7 @@ int cvclearStaleEntries(codeBook &c)
 // minMod and maxMod must have length numChannels, e.g. 3 channels => minMod[3], maxMod[3].
 //
 // Return
-// 0 => background, 255 => foreground  ±³¾°²î·Ö,Ñ°ÕÒÇ°¾°Ä¿±ê
+// 0 => background, 255 => foreground  èƒŒæ™¯å·®åˆ†,å¯»æ‰¾å‰æ™¯ç›®æ ‡
 uchar cvbackgroundDiff(uchar *p, codeBook &c, int numChannels, int *minMod, int *maxMod)
 {
     int matchChannel;
@@ -672,9 +672,9 @@ uchar cvbackgroundDiff(uchar *p, codeBook &c, int numChannels, int *minMod, int 
         if(matchChannel==numChannels)
             break;
     }
-    if(i==c.numEntries)        //ÏñËØp¸÷Í¨µÀÖµ²»Âú×ãËùÓĞµÄÂëÔª,ÔòÎªÇ°¾°,·µ»Ø°×É«
+    if(i==c.numEntries)        //åƒç´ på„é€šé“å€¼ä¸æ»¡è¶³æ‰€æœ‰çš„ç å…ƒ,åˆ™ä¸ºå‰æ™¯,è¿”å›ç™½è‰²
         return 255;
-    return 0;                //Æ¥Åäµ½Ò»¸öÂëÔªÊ±,ÔòÎª±³¾°,·µ»ØºÚÉ«
+    return 0;                //åŒ¹é…åˆ°ä¸€ä¸ªç å…ƒæ—¶,åˆ™ä¸ºèƒŒæ™¯,è¿”å›é»‘è‰²
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -700,54 +700,63 @@ void cvconnectedComponents(IplImage *mask, int poly1_hull0, float perimScale)
 
     CvContourScanner scanner=cvStartFindContours(mask,mem_storage,sizeof(CvContour),CV_RETR_EXTERNAL);
     CvSeq* c;
-    int numCont=0;                //ÂÖÀªÊı
+    int numCont=0;                //è½®å»“æ•°
     while((c=cvFindNextContour(scanner))!=NULL)
     {
         double len=cvContourPerimeter(c);
-        double q=(mask->height+mask->width)/perimScale;   //ÂÖÀª³¤¶È·§ÖµÉè¶¨
+        double q=(mask->height+mask->width)/perimScale;   //è½®å»“é•¿åº¦é˜€å€¼è®¾å®š
         if(len<q)
-            cvSubstituteContour(scanner,NULL);           //É¾³ıÌ«¶ÌÂÖÀª
+            cvSubstituteContour(scanner,NULL);           //åˆ é™¤å¤ªçŸ­è½®å»“
         else
         {
             CvSeq* c_new;
-            if(poly1_hull0)                                  //ÓÃ¶à±ßĞÎÄâºÏÂÖÀª
+            if(poly1_hull0)                                  //ç”¨å¤šè¾¹å½¢æ‹Ÿåˆè½®å»“
                 c_new = cvApproxPoly(c, sizeof(CvContour), mem_storage,
                     CV_POLY_APPROX_DP, CVCONTOUR_APPROX_LEVEL);
-            else                                        //¼ÆËãÂÖÀªHu¾Ø
+            else                                        //è®¡ç®—è½®å»“HuçŸ©
                 c_new = cvConvexHull2(c,mem_storage, CV_CLOCKWISE, 1);
 
-            cvSubstituteContour(scanner,c_new);            //Ìæ»»ÄâºÏºóµÄ¶à±ßĞÎÂÖÀª
+            cvSubstituteContour(scanner,c_new);            //æ›¿æ¢æ‹Ÿåˆåçš„å¤šè¾¹å½¢è½®å»“
             numCont++;
         }
     }
-    contours = cvEndFindContours(&scanner);  //½áÊøÉ¨Ãè,²¢·µ»Ø×î¸ß²ãµÄµÚÒ»¸öÂÖÀªÖ¸Õë
+    contours = cvEndFindContours(&scanner);  //ç»“æŸæ‰«æ,å¹¶è¿”å›æœ€é«˜å±‚çš„ç¬¬ä¸€ä¸ªè½®å»“æŒ‡é’ˆ
 
     cvZero(mask);
     for(c=contours; c!=NULL; c=c->h_next)
         cvDrawContours(mask,c,CV_CVX_WHITE, CV_CVX_BLACK,-1,CV_FILLED,8);
 }
 
+void my_mkdir(int n){
+    //ä»…windowså¯ç”¨
+    system("mkdir target%d",n);
+    system("mkdir -p target%d\\rgb",n);
+    system("mkdir -p target%d\\dep",n);
+}
+
 int main()
 {
+    my_mkdir(1);
+
     ///////////////////////////////////////
-    // ĞèÒªÊ¹ÓÃµÄ±äÁ¿
+    // éœ€è¦ä½¿ç”¨çš„å˜é‡
     //CvCapture* capture=NULL;
-    IplImage*  rawImage=NULL;            //ÊÓÆµµÄÃ¿Ò»Ö¡Ô­Í¼Ïñ
+    IplImage*  rawImage=NULL;            //è§†é¢‘çš„æ¯ä¸€å¸§åŸå›¾åƒ
     IplImage*  rawImageDep=NULL;
-    IplImage*  yuvImage=NULL;            //±È¾­Ñé½Ç¶È¿´¾ø´ó²¿·Ö±³¾°ÖĞµÄ±ä»¯ÇãÏòÓÚÑØÁÁ¶ÈÖá,¶ø²»ÊÇÑÕÉ«Öá,¹ÊYUVÑÕÉ«¿Õ¼äĞ§¹û¸üºÃ
+    IplImage*  yuvImage=NULL;            //æ¯”ç»éªŒè§’åº¦çœ‹ç»å¤§éƒ¨åˆ†èƒŒæ™¯ä¸­çš„å˜åŒ–å€¾å‘äºæ²¿äº®åº¦è½´,è€Œä¸æ˜¯é¢œè‰²è½´,æ•…YUVé¢œè‰²ç©ºé—´æ•ˆæœæ›´å¥½
     IplImage*  yuvImageDep=NULL;
-    IplImage* ImaskCodeBook=NULL;        //ÑÚÄ£Í¼Ïñ
+    IplImage* ImaskCodeBook=NULL;        //æ©æ¨¡å›¾åƒ
     IplImage* ImaskCodeBookDep=NULL;
-    IplImage* ImaskCodeBook_pre=NULL;        //ÑÚÄ£Í¼Ïñ
+    IplImage* ImaskCodeBook_pre=NULL;        //æ©æ¨¡å›¾åƒ
     IplImage* ImaskCodeBookDep_pre=NULL;
-    IplImage* ImaskCodeBookCC=NULL;        //Çå³ıÔëÉùºó²¢²ÉÓÃ¶à±ßĞÎ·¨ÄâºÏÂÖÀªÁ¬Í¨ÓòµÄÑÚÄ£Í¼Ïñ
+    IplImage* ImaskCodeBookCC=NULL;        //æ¸…é™¤å™ªå£°åå¹¶é‡‡ç”¨å¤šè¾¹å½¢æ³•æ‹Ÿåˆè½®å»“è¿é€šåŸŸçš„æ©æ¨¡å›¾åƒ
     //IplImage* ImaskCodeBookCCDep=NULL;
 
     codeBook* cB=NULL;
     codeBook* cB_dep=NULL;
     unsigned cbBounds[CHANNELS];
     unsigned cbBoundsDep[CHANNELS];
-    uchar* pColor=NULL;                    //yuvImageÏñËØÖ¸Õë
+    uchar* pColor=NULL;                    //yuvImageåƒç´ æŒ‡é’ˆ
     uchar* pColorDep=NULL;
     int imageLen=0;
     int nChannels=CHANNELS;
@@ -755,10 +764,10 @@ int main()
     int maxMod[CHANNELS];
 
     //////////////////////////////////////////////////////////////////////////
-    // ³õÊ¼»¯¸÷±äÁ¿
-    //cvNamedWindow("Ô­Í¼");
-    //cvNamedWindow("ÑÚÄ£Í¼Ïñ");
-    //cvNamedWindow("Á¬Í¨ÓòÑÚÄ£Í¼Ïñ");
+    // åˆå§‹åŒ–å„å˜é‡
+    //cvNamedWindow("åŸå›¾");
+    //cvNamedWindow("æ©æ¨¡å›¾åƒ");
+    //cvNamedWindow("è¿é€šåŸŸæ©æ¨¡å›¾åƒ");
 
     //capture = cvCreateFileCapture("C:/Users/shark/Desktop/eagle.flv");
     //capture=cvCreateCameraCapture(0);
@@ -797,7 +806,7 @@ int main()
     cvSet(ImaskCodeBookDep,cvScalar(255));
 
     imageLen=width*height;
-    cB=new codeBook[imageLen];    //µÃµ½ÓëÍ¼ÏñÏñËØÊıÄ¿³¤¶ÈÒ»ÑùµÄÒ»×éÂë±¾,ÒÔ±ã¶ÔÃ¿¸öÏñËØ½øĞĞ´¦Àí
+    cB=new codeBook[imageLen];    //å¾—åˆ°ä¸å›¾åƒåƒç´ æ•°ç›®é•¿åº¦ä¸€æ ·çš„ä¸€ç»„ç æœ¬,ä»¥ä¾¿å¯¹æ¯ä¸ªåƒç´ è¿›è¡Œå¤„ç†
     cB_dep=new codeBook[imageLen];
     for(int i=0;i<imageLen;i++)
     {
@@ -809,12 +818,12 @@ int main()
     {
         cbBounds[i]=10;
         cbBoundsDep[i]=10;
-        minMod[i]=20;        //ÓÃÓÚ±³¾°²î·Öº¯ÊıÖĞ
-        maxMod[i]=20;        //µ÷ÕûÆäÖµÒÔ´ïµ½×îºÃµÄ·Ö¸î
+        minMod[i]=20;        //ç”¨äºèƒŒæ™¯å·®åˆ†å‡½æ•°ä¸­
+        maxMod[i]=20;        //è°ƒæ•´å…¶å€¼ä»¥è¾¾åˆ°æœ€å¥½çš„åˆ†å‰²
     }
 
     //////////////////////////////////////////////////////////////////////////
-    // ¿ªÊ¼´¦ÀíÊÓÆµÃ¿Ò»Ö¡Í¼Ïñ
+    // å¼€å§‹å¤„ç†è§†é¢‘æ¯ä¸€å¸§å›¾åƒ
 
     for(int i=0;;i++)
     {
@@ -828,17 +837,17 @@ int main()
 
         cvCvtColor(rawImage, yuvImage, CV_BGR2YCrCb);
         cvCvtColor(rawImageDep, yuvImageDep, CV_BGR2YCrCb);
-        // É«²Ê¿Õ¼ä×ª»»,½«rawImage ×ª»»µ½YUVÉ«²Ê¿Õ¼ä,Êä³öµ½yuvImage
-        // ¼´Ê¹²»×ª»»Ğ§¹ûÒÀÈ»ºÜºÃ
+        // è‰²å½©ç©ºé—´è½¬æ¢,å°†rawImage è½¬æ¢åˆ°YUVè‰²å½©ç©ºé—´,è¾“å‡ºåˆ°yuvImage
+        // å³ä½¿ä¸è½¬æ¢æ•ˆæœä¾ç„¶å¾ˆå¥½
         // yuvImage = cvCloneImage(rawImage);
 
-        if(i<=30)            //Ç°30Ö¡½øĞĞ±³¾°Ñ§Ï°
+        if(i<=30)            //å‰30å¸§è¿›è¡ŒèƒŒæ™¯å­¦ä¹ 
         {
             pColor=(uchar*)yuvImage->imageData;
             pColorDep=(uchar*)yuvImageDep->imageData;
             for(int c=0; c<imageLen; c++)
             {
-                update_codebook(pColor, cB[c], cbBounds, nChannels);   //¶ÔÃ¿¸öÏñËØµ÷ÓÃ´Ëº¯Êı
+                update_codebook(pColor, cB[c], cbBounds, nChannels);   //å¯¹æ¯ä¸ªåƒç´ è°ƒç”¨æ­¤å‡½æ•°
                 update_codebook(pColorDep, cB_dep[c], cbBoundsDep, nChannels);
                 pColor+=3;
                 pColorDep+=3;
@@ -848,7 +857,7 @@ int main()
                 for(int c=0;c<imageLen;c++)
                 {
                     cvclearStaleEntries(cB_dep[c]);
-                    cvclearStaleEntries(cB[c]);            //µÚ30Ê±Ö¡Ê±,É¾³ıÃ¿¸öÏñËØÂë±¾ÖĞ³Â¾ÉµÄÂëÔª
+                    cvclearStaleEntries(cB[c]);            //ç¬¬30æ—¶å¸§æ—¶,åˆ é™¤æ¯ä¸ªåƒç´ ç æœ¬ä¸­é™ˆæ—§çš„ç å…ƒ
                 }
             }
         }
@@ -882,7 +891,7 @@ int main()
                 analysis(0,rgb,rgb_pre,dep,dep_pre,dst,SCE_NORMAL);
                 del_small(dst,dst);
                 imSmallHoles(dst,dst);
-                //imshow("tar",dst);
+                imshow("tar",dst);
 
                 char name[20];
                 sprintf(name,"target%d/T_%d.png",scn,mypic.i-1);
@@ -901,7 +910,7 @@ int main()
         int key = cvWaitKey(80);
         switch(key)
         {
-        //¿Õ¸ñ¼üÔİÍ£
+        //ç©ºæ ¼é”®æš‚åœ
         case ' ':
             waitKey(0);
             break;
