@@ -119,10 +119,12 @@ class MyDemo
 void demo(int n,int s,int e,int delay)
  {
      MyDemo m = MyDemo(n,s,e);
+     MyPicStream mypic = MyPicStream(SC(n),1,s,e);
      for(int i=m.start_num;i<=m.end_num;i++){
          imshow("target",m.getPic(1));
          imshow("rgb",m.getPic(2));
          imshow("dep",m.getPic(3));
+         imshow("src",mypic.getPic());
          m.i++;
          switch(waitKey(delay))
          {
