@@ -6,13 +6,13 @@
 using namespace std;
 using namespace cv;
 
-//ä¸€äº›å¸¸é‡å®šä¹‰ï¼Œä½†æ˜¯å¯èƒ½è¦åŠ¨æ€ä¿®æ”¹ï¼Œä»å£°æ˜ä¸ºå˜é‡
+//Ò»Ğ©³£Á¿¶¨Òå£¬µ«ÊÇ¿ÉÄÜÒª¶¯Ì¬ĞŞ¸Ä£¬ÈÔÉùÃ÷Îª±äÁ¿
 
-//æœ€å°æœ‰æ•ˆåŒºåŸŸï¼Œä½äºæ­¤é¢ç§¯å°†è¢«ç›´æ¥è®¤å®šä¸ºå™ªå£°ç‚¹
+//×îĞ¡ÓĞĞ§ÇøÓò£¬µÍÓÚ´ËÃæ»ı½«±»Ö±½ÓÈÏ¶¨ÎªÔëÉùµã
 double MINAREA = 85.0;
-//ä½¿ç”¨å‰å¤šå°‘å¼ å›¾åƒè®­ç»ƒï¼Ÿ
+//Ê¹ÓÃÇ°¶àÉÙÕÅÍ¼ÏñÑµÁ·£¿
 int TRAIN = 10;
-//å»¶æ—¶
+//ÑÓÊ±
 int delay_t = 1;
 
 enum scene{
@@ -21,13 +21,13 @@ enum scene{
 };
 
 void my_mkdir(int n){
-    //ä»…windowså¯ç”¨
+    //½öwindows¿ÉÓÃ
     char name[50];
     sprintf(name,"mkdir target%d",n);
     system(name);
-    sprintf(name,"mkdir -p target%d\\rgb",n);
+    sprintf(name,"mkdir target%d\\rgb",n);
     system(name);
-    sprintf(name,"mkdir -p target%d\\dep",n);
+    sprintf(name,"mkdir target%d\\dep",n);
     system(name);
 }
 
@@ -41,16 +41,16 @@ const char *SC(int i)
     return i==1?SC1:(i==2?SC2:(i==3?SC3:(i==4?SC4:NULL)));
 }
 
-//è¯»å–è·¯å¾„å’Œæ ¼å¼æœ‰è§„å¾‹çš„ç´ æ
+//¶ÁÈ¡Â·¾¶ºÍ¸ñÊ½ÓĞ¹æÂÉµÄËØ²Ä
 class MyPicStream
 {
 private:
 public:
-    int start_num;      //åˆå§‹å’Œç»“æŸå›¾ç‰‡å·
+    int start_num;      //³õÊ¼ºÍ½áÊøÍ¼Æ¬ºÅ
     int end_num;
-    int pic_type;       //å›¾ç‰‡ç±»å‹,1æ™®é€šrgb ï¼Œ2æ·±åº¦
-    const char *head;   //æ–‡ä»¶åå‰ç¼€
-    int i;              //å½“å‰å›¾ç‰‡å·
+    int pic_type;       //Í¼Æ¬ÀàĞÍ,1ÆÕÍ¨rgb £¬2Éî¶È
+    const char *head;   //ÎÄ¼şÃûÇ°×º
+    int i;              //µ±Ç°Í¼Æ¬ºÅ
     MyPicStream(const char *a_head,int a_type,int a_start_num,int a_end_num)
     {
         i=a_start_num;
@@ -83,50 +83,50 @@ public:
     };
 };
 
-//è¯»å–è·¯å¾„å’Œæ ¼å¼æœ‰è§„å¾‹çš„ç´ æ
+//¶ÁÈ¡Â·¾¶ºÍ¸ñÊ½ÓĞ¹æÂÉµÄËØ²Ä
 class MyDemo
-{
-private:
-public:
-    int start_num;      //åˆå§‹å’Œç»“æŸå›¾ç‰‡å·
-    int end_num;
-    int pic_type;       //å›¾ç‰‡ç±»å‹,1æ™®é€šrgb ï¼Œ2æ·±åº¦
-    int number;
-    int i;              //å½“å‰å›¾ç‰‡å·
-    MyDemo(int a_number,int a_start_num,int a_end_num)
-    {
-        number=a_number;
-        i=a_start_num;
-        start_num=a_start_num;
-        end_num=a_end_num;
-    };
+ {
+ private:
+ public:
+     int start_num;      //³õÊ¼ºÍ½áÊøÍ¼Æ¬ºÅ
+     int end_num;
+     int pic_type;       //Í¼Æ¬ÀàĞÍ,1ÆÕÍ¨rgb £¬2Éî¶È
+     int number;
+     int i;              //µ±Ç°Í¼Æ¬ºÅ
+     MyDemo(int a_number,int a_start_num,int a_end_num)
+     {
+         number=a_number;
+         i=a_start_num;
+         start_num=a_start_num;
+         end_num=a_end_num;
+     };
 
-    Mat getPic(int pic_type)
-    {
-        //i++;
-        if(i>end_num)
-        {
-            Mat tmp;
-            tmp.data=NULL;
-            return tmp;
-        }
-        char nameBuf[50];
-        sprintf(nameBuf,"target%d%s/%s_%d.png",
-                number,pic_type==2?"/rgb":(pic_type==3?"/dep":""),pic_type==2?"rgb":(pic_type==3?"dep":"T"),i);
-        Mat target = imread(nameBuf);
-        if(target.empty())
-        {
-            cout<<"cant open file:"<<nameBuf<<" may to end !"<<endl;
-            Mat tmp;
-            tmp.data=NULL;
-            return tmp;
-        }
-        return target;
-    };
-};
+     Mat getPic(int pic_type)
+     {
+         //i++;
+         if(i>end_num)
+         {
+             Mat tmp;
+             tmp.data=NULL;
+             return tmp;
+         }
+         char nameBuf[50];
+         sprintf(nameBuf,"target%d%s/%s_%d.png",
+                 number,pic_type==2?"/rgb":(pic_type==3?"/dep":""),pic_type==2?"rgb":(pic_type==3?"dep":"T"),i);
+         Mat target = imread(nameBuf);
+         if(target.empty())
+         {
+             cout<<"cant open file:"<<nameBuf<<" may to end !"<<endl;
+             Mat tmp;
+             tmp.data=NULL;
+             return tmp;
+         }
+         return target;
+     };
+ };
 
 
-//åˆ é™¤å°çš„å™ªå£°ç‚¹
+//É¾³ıĞ¡µÄÔëÉùµã
 void del_small(const Mat mask,Mat &dst)
 {
     int niters = 1;// default :3
@@ -136,11 +136,11 @@ void del_small(const Mat mask,Mat &dst)
 
     Mat temp=mask.clone();
 
-    dilate(temp, temp, Mat(), Point(-1,-1), niters);//è†¨èƒ€ï¼Œ3*3çš„elementï¼Œè¿­ä»£æ¬¡æ•°ä¸ºniters
-    erode(temp, temp, Mat(), Point(-1,-1), niters*2);//è…èš€
+    dilate(temp, temp, Mat(), Point(-1,-1), niters);//ÅòÕÍ£¬3*3µÄelement£¬µü´ú´ÎÊıÎªniters
+    erode(temp, temp, Mat(), Point(-1,-1), niters*2);//¸¯Ê´
     dilate(temp, temp, Mat(), Point(-1,-1), niters);
 
-    findContours( temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );//æ‰¾è½®å»“
+    findContours( temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE );//ÕÒÂÖÀª
 
     dst = Mat::zeros(mask.size(), CV_8UC1);
 
@@ -149,7 +149,7 @@ void del_small(const Mat mask,Mat &dst)
 
     int idx = 0 ;
 
-    //ä½¿ç”¨å®¹å™¨ä¿å­˜ç¬¦åˆæ¡ä»¶çš„åŒºåŸŸ
+    //Ê¹ÓÃÈİÆ÷±£´æ·ûºÏÌõ¼şµÄÇøÓò
     vector<int> all_big_area;
 
     for( ; idx >= 0; idx = hierarchy[idx][0] )
@@ -158,16 +158,16 @@ void del_small(const Mat mask,Mat &dst)
         double area = fabs(contourArea(c));
         if( area > MINAREA )
         {
-            all_big_area.push_back(idx);//æ·»åŠ åˆ°å®¹å™¨ä¸­
+            all_big_area.push_back(idx);//Ìí¼Óµ½ÈİÆ÷ÖĞ
         }
     }
-    Scalar color(255);//è¾“å‡ºçš„é¢œè‰²
+    Scalar color(255);//Êä³öµÄÑÕÉ«
     vector<int>::iterator it;
     for(it=all_big_area.begin(); it!=all_big_area.end(); it++)
         drawContours( dst, contours, *it, color,CV_FILLED, 8, hierarchy );
 }
 
-//æ±‚ä¸€ä¸ªäºŒå€¼å›¾çš„å‰æ™¯é¢ç§¯,ç”¨äºåˆ¤æ–­å¤§é¢ç§¯å…‰ç…§
+//ÇóÒ»¸ö¶şÖµÍ¼µÄÇ°¾°Ãæ»ı,ÓÃÓÚÅĞ¶Ï´óÃæ»ı¹âÕÕ
 double getArea(Mat src)
 {
     vector<vector<Point> > contours;
@@ -185,7 +185,7 @@ double getArea(Mat src)
     return s;
 }
 
-//åˆ¤æ–­æ˜¯å¦æœ‰çªç„¶çš„å…‰ç…§
+//ÅĞ¶ÏÊÇ·ñÓĞÍ»È»µÄ¹âÕÕ
 bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
 {
     double s_rgb,s_rgb_pre,s_dep,s_dep_pre,pro_rgb,pro_dep,s_pic;
@@ -203,24 +203,24 @@ bool is_suddenly_light(Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre)
     pro_rgb = s_rgb / s_pic - s_rgb_pre / s_pic;//s_rgb / (s_rgb + s_rgb_pre);
     pro_dep = s_dep / s_pic - s_dep_pre / s_pic;//s_dep / (s_dep + s_dep_pre);
 
-    if(pro_rgb >0.5 && pro_rgb - pro_dep > 0.3)//å®éªŒå¾—å‡º?
+    if(pro_rgb >0.5 && pro_rgb - pro_dep > 0.3)//ÊµÑéµÃ³ö?
     {
         cout<<pro_rgb<<"*"<<pro_rgb - pro_dep<<endl;
         return true;
     }
     return false;
 }
-//åˆ¤æ–­fgæˆ–bgçš„å¯é æ€§
-//å‚æ•° ï¼šfgè¿˜æ˜¯bgï¼ˆ0æˆ–1ï¼‰ï¼Œåæ ‡ï¼Œsrc
+//ÅĞ¶Ïfg»òbgµÄ¿É¿¿ĞÔ
+//²ÎÊı £ºfg»¹ÊÇbg£¨0»ò1£©£¬×ø±ê£¬src
 bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
 {
-    /*         w2
+    /**        w2
             +--------+---------+
             |        |         |
             |     w1 |         |
             |    +---+---+     |
             |    |       |     |
-            +----+       +-----+
+            +----+   s   +-----+
             |    +---+---+     |
             |        |         |
             |        |         |
@@ -242,7 +242,7 @@ bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
     {
         for(int y=start_y; y<end_y; y++)
         {
-            //todo:ä¼˜åŒ–åˆ†ç±»åº”è¯¥å¯ä»¥å‡å°‘åˆ¤æ–­æ¬¡æ•°
+            //todo:ÓÅ»¯·ÖÀàÓ¦¸Ã¿ÉÒÔ¼õÉÙÅĞ¶Ï´ÎÊı
             bool is_fbg;
             if(fg_or_bg==0)is_fbg = src.at<uchar>(x,y) > 0?true:false;
             else is_fbg = src.at<uchar>(x,y) < 200?true:false;
@@ -270,7 +270,7 @@ bool is_fbg_com_pre_2(int fg_or_bg,int x0,int y0,Mat src)
     return false;
 }
 
-//åˆ†æ4ä¸ªè¾“å…¥å›¾ï¼Œäº§ç”Ÿæ–°å›¾
+//·ÖÎö4¸öÊäÈëÍ¼£¬²úÉúĞÂÍ¼
 void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,Mat &dst,enum scene S)
 {
     if(!have_suddenly_light)
@@ -286,34 +286,34 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
             {
                 if(rgb.at<uchar>(i,j)==255)
                 {
-                    //å¦‚æœåœºæ™¯è¢«è®¾ç½®ä¸ºæ— å…‰ç…§,å°†ç›´æ¥å¯ä¿¡
+                    //Èç¹û³¡¾°±»ÉèÖÃÎªÎŞ¹âÕÕ,½«Ö±½Ó¿ÉĞÅ
                     if(S==SCE_NOT_LIGHT)
                     {
                         dst.at<uchar>(i,j) = 255;
                         continue;
                     }
-                    if(dep.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255; //ç¡®å®šä¸ºå‰æ™¯
+                    if(dep.at<uchar>(i,j)>100)dst.at<uchar>(i,j)=255; //È·¶¨ÎªÇ°¾°
                     else
                     {
-                        //å¯èƒ½æ˜¯å±€éƒ¨çš„å…‰ç…§å’Œé˜´å½±
+                        //¿ÉÄÜÊÇ¾Ö²¿µÄ¹âÕÕºÍÒõÓ°
                         if(!is_fbg_com_pre_2(1,i,j,dep_pre))
                         {
-                            //å¦‚æœæ·±åº¦å›¾åˆ¤å®šä¸ºâ€èƒŒæ™¯ä¸å¯é â€œ
+                            //Èç¹ûÉî¶ÈÍ¼ÅĞ¶¨Îª¡±±³¾°²»¿É¿¿¡°
                             dst.at<uchar>(i,j) = 255;
                         }else
                         {
-                            //å¦‚æœæ·±åº¦å›¾åˆ¤å®šä¸ºâ€èƒŒæ™¯å¯é â€œï¼Œåº”è¯¥æ˜¯å±€éƒ¨å…‰ç…§
-                            //dst.at<uchar>(i,j) = 0;//é»˜è®¤æ˜¯0ï¼Œä¸éœ€è¦æ˜¾å¼èµ‹å€¼
+                            //Èç¹ûÉî¶ÈÍ¼ÅĞ¶¨Îª¡±±³¾°¿É¿¿¡°£¬Ó¦¸ÃÊÇ¾Ö²¿¹âÕÕ
+                            //dst.at<uchar>(i,j) = 0;//Ä¬ÈÏÊÇ0£¬²»ĞèÒªÏÔÊ½¸³Öµ
                         }
                     }
                 }
-                if(dep.at<uchar>(i,j)>100)      //depä¸ºå‰æ™¯
+                if(dep.at<uchar>(i,j)>100)      //depÎªÇ°¾°
                 {
-                    if(rgb.at<uchar>(i,j)==255)  //rgbä¹Ÿä¸ºå‰æ™¯
+                    if(rgb.at<uchar>(i,j)==255)  //rgbÒ²ÎªÇ°¾°
                     {
-                        dst.at<uchar>(i,j)=255; //ç¡®å®šä¸ºå‰æ™¯
+                        dst.at<uchar>(i,j)=255; //È·¶¨ÎªÇ°¾°
                     }
-                    else                        //rgbä¸ºèƒŒæ™¯ï¼Œè¿›ä¸€æ­¥æ£€æŸ¥
+                    else                        //rgbÎª±³¾°£¬½øÒ»²½¼ì²é
                     {
                         if(is_fbg_com_pre_2(0,i,j,dep_pre))
                         {
@@ -322,7 +322,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                              {
                                 double distance = pointPolygonTest(contours[i_c],Point(j,i),true);
                                 //cout<<abs(distance)<<"<=distance"<<endl;
-                                if((distance >= 9.0))
+                                if((distance >= 7.0))
                                 {
                                     //cout<<"a point in edge !########"<<endl;
                                     //cout<<distance<<"-"<<i<<"-"<<j<<endl;
@@ -338,7 +338,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
     }
     else
     {
-        //ä½¿ç”¨is_fg_com_preåˆ¤æ–­å™ªå£°
+        //Ê¹ÓÃis_fg_com_preÅĞ¶ÏÔëÉù
 
         for( int i = 0; i < dep.rows; ++i)
         {
@@ -355,25 +355,25 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
         }
 
         /*
-        //updateï¼šä¼¼ä¹ä¹Ÿå¯ä»¥ç›´æ¥is_fg_com_preåˆ¤æ–­ï¼Œä½†is_fg_com_preä¼¼ä¹æœ‰bugï¼
-        //çªç„¶å…‰ç…§ä½¿å¾—rgbç»“æœæ²¡æœ‰å‚è€ƒä»·å€¼ï¼Œè¿™é‡Œçº¯ç²¹ä½¿ç”¨æ·±åº¦ç»“æœ
-        //æ·±åº¦å›¾å¾ˆå¤šå™ªå£°åªæœ‰ä¸€ç¬é—´ï¼Œå› æ­¤å¯¹äºä¸€ä¸ªåŒºåŸŸæ¥è¯´ï¼Œ
-        //å‰ä¸€å¸§å’Œå½“å‰å¸§çš„è½®å»“åº”è¯¥æœ‰äº¤é›†ï¼Œæ²¡æœ‰äº¤é›†å¯ä»¥åˆ¤å®šä¸ºèƒŒæ™¯
+        //update£ºËÆºõÒ²¿ÉÒÔÖ±½Óis_fg_com_preÅĞ¶Ï£¬µ«is_fg_com_preËÆºõÓĞbug£¡
+        //Í»È»¹âÕÕÊ¹µÃrgb½á¹ûÃ»ÓĞ²Î¿¼¼ÛÖµ£¬ÕâÀï´¿´âÊ¹ÓÃÉî¶È½á¹û
+        //Éî¶ÈÍ¼ºÜ¶àÔëÉùÖ»ÓĞÒ»Ë²¼ä£¬Òò´Ë¶ÔÓÚÒ»¸öÇøÓòÀ´Ëµ£¬
+        //Ç°Ò»Ö¡ºÍµ±Ç°Ö¡µÄÂÖÀªÓ¦¸ÃÓĞ½»¼¯£¬Ã»ÓĞ½»¼¯¿ÉÒÔÅĞ¶¨Îª±³¾°
 
-        //æ‰¾åˆ°depå¯ç”¨çš„è½®å»“
+        //ÕÒµ½dep¿ÉÓÃµÄÂÖÀª
         struct ValidContours v = getValidContours(dep,dep_pre);
-        //å¡«å……å¯ç”¨è½®å»“
+        //Ìî³ä¿ÉÓÃÂÖÀª
         for(int i=v.valids.size()-1;i>=0;i--)
         {
             drawContours(dst,v.contours,v.valids[i],Scalar(255),CV_FILLED,8,v.hierarchy);
         }
         */
-        //ä½†æ·±åº¦ç»“æœå™ªå£°å¤ªå¤§ï¼Œæ‰€ä»¥è¿™é‡Œæé«˜del_smallçš„ç›®æ ‡å¤§å°ä¸Šé™å‡å°‘ä¸€äº›åå°å™ªå£°ï¼ˆnote:ç”šè‡³å¯ä»¥åªä¿ç•™æœ€å¤§å€¼ï¼Ÿï¼‰
-        //ä¹Ÿå¯ä»¥ä¸ä½¿ç”¨del_small
-        double tmp = MINAREA;   //æš‚å­˜é˜ˆå€¼
+        //µ«Éî¶È½á¹ûÔëÉùÌ«´ó£¬ËùÒÔÕâÀïÌá¸ßdel_smallµÄÄ¿±ê´óĞ¡ÉÏÏŞ¼õÉÙÒ»Ğ©Æ«Ğ¡ÔëÉù£¨note:ÉõÖÁ¿ÉÒÔÖ»±£Áô×î´óÖµ£¿£©
+        //Ò²¿ÉÒÔ²»Ê¹ÓÃdel_small
+        double tmp = MINAREA;   //Ôİ´æãĞÖµ
         MINAREA = 450.0;
         del_small(dst,dst);
-        MINAREA = tmp;          //æ¢å¤é˜ˆå€¼
+        MINAREA = tmp;          //»Ö¸´ãĞÖµ
     }
 }
 
@@ -382,7 +382,7 @@ void imSmallHoles(Mat src,Mat &dst)
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     //cout<<"call imHoles"<<endl;
-    //ä¸¤å±‚è½®å»“
+    //Á½²ãÂÖÀª
     findContours(src.clone(), contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
     //cout<<"call imHoles2"<<endl;
 
@@ -401,16 +401,16 @@ void imSmallHoles(Mat src,Mat &dst)
         }
     }
 }
-
+//²ÎÊı£ºÑÓÊ±£¬µÚ¼¸¸öËØ²Ä£¬ÆğÊ¼Ö¡£¬Ğ´ÈëÎÄ¼ş£¿£¬ÏÔÊ¾£¿³¡¾°£¿rgbÑ§Ï°ËÙ¶È
 int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bool IS_SHOW,enum scene S,double v_rgb)
 {
     MyPicStream myb = MyPicStream(SC(scn),1,start_pic,500);
     MyPicStream myf = MyPicStream(SC(scn),2,start_pic,500);
 
-    //ToDo ï¼šä½¿ç”¨è‡ªå·±å®ç°çš„çš„GMMç®—æ³•
+    //ToDo £ºÊ¹ÓÃ×Ô¼ºÊµÏÖµÄµÄGMMËã·¨
     BackgroundSubtractorMOG2 bgSubtractor(10,16,true);
     BackgroundSubtractorMOG2 bgSubtractor_dep(10,16,true);
-    //å…ˆå»ºç«‹çª—å£ä»¥å®ç°çª—å£çš„æ‹–æ”¾ï¼ˆCV_WINDOW_NORMALï¼‰
+    //ÏÈ½¨Á¢´°¿ÚÒÔÊµÏÖ´°¿ÚµÄÍÏ·Å£¨CV_WINDOW_NORMAL£©
     if(0 && IS_SHOW)
     {
         namedWindow("src",CV_WINDOW_NORMAL);
@@ -421,18 +421,18 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
     Mat src,src_dep,rgb,dep,rgb_pre,dep_pre,dst;
     src=myb.getPic();
     src_dep=myf.getPic();
-    int i=0;                            //å›¾ç‰‡è®¡æ•°
-    const int FIT=12;                    //ä½¿ç”¨å¤šå°‘å¼ å›¾æ¥é€‚åº”å…‰ç…§
+    int i=0;                            //Í¼Æ¬¼ÆÊı
+    const int FIT=12;                    //Ê¹ÓÃ¶àÉÙÕÅÍ¼À´ÊÊÓ¦¹âÕÕ
     int fit = FIT;
     bool is_light=false;
     double v_rgb_s=v_rgb;
-    double v_rgb_n=v_rgb_s,v_rgb_train=0.003,v_dep=0.001,v_dep_train=0.009;    //å­¦ä¹ é€Ÿåº¦
+    double v_rgb_n=v_rgb_s,v_rgb_train=0.003,v_dep=0.001,v_dep_train=0.009;    //Ñ§Ï°ËÙ¶È
     while (!src.empty())
     {
         char key = waitKey(i<TRAIN?1:delay_t);
         switch(key)
         {
-        //ç©ºæ ¼é”®æš‚åœ
+        //¿Õ¸ñ¼üÔİÍ£
         case ' ':
             waitKey(0);
             break;
@@ -440,7 +440,7 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
             ;
         }
         cout<<"# to "<<myb.i<<" th pic #"<<endl;
-        if(i<TRAIN)             //è®­ç»ƒæœŸé—´
+        if(i<TRAIN)             //ÑµÁ·ÆÚ¼ä
         {
             i++;
             bgSubtractor(src,rgb,v_rgb_train);
@@ -455,37 +455,37 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
             bgSubtractor(src,rgb,v_rgb_n);
             bgSubtractor_dep(src_dep,dep,v_dep);
 
-            //é˜´å½±ç›´æ¥åˆ é™¤
+            //ÒõÓ°Ö±½ÓÉ¾³ı
             threshold(rgb,rgb,200,255,THRESH_BINARY);
             threshold(dep,dep,0,255,THRESH_BINARY);
 
             if(IS_SHOW)
             {
-                imshow("rgb",rgb);              //rgbå›¾ç»“æœ
-                imshow("dep",dep);              //æ·±åº¦å›¾ç»“æœ
-                imshow("src",src);              //rgbåŸå›¾
+                imshow("rgb",rgb);              //rgbÍ¼½á¹û
+                imshow("dep",dep);              //Éî¶ÈÍ¼½á¹û
+                imshow("src",src);              //rgbÔ­Í¼
             }
             //del_small(rgb,rgb);
             //del_small(rgb_pre,rgb_pre);
             //del_small(dep,dep);
             //del_small(dep_pre,dep_pre);
-            if(!is_light)         //å¦‚æœä¸åœ¨å…‰ç…§å½±å“æœŸ,æ£€æŸ¥æ˜¯å¦å…‰ç…§
+            if(!is_light)         //Èç¹û²»ÔÚ¹âÕÕÓ°ÏìÆÚ,¼ì²éÊÇ·ñ¹âÕÕ
             {
                 is_light = is_suddenly_light(rgb,rgb_pre,dep,dep_pre);
                 if(is_light)
                 {
-                    v_rgb_n=0.01;    //åŠ å¿«å­¦ä¹ é€Ÿåº¦
+                    v_rgb_n=0.01;    //¼Ó¿ìÑ§Ï°ËÙ¶È
                     cout<<"sudenly light !"<<endl;
                 }
             }
-            else                  //æ­£åœ¨å…‰ç…§å½±å“æœŸ
+            else                  //ÕıÔÚ¹âÕÕÓ°ÏìÆÚ
             {
                 fit--;
-                if(fit==0)        //fitå‡åˆ°é›¶è¯´æ˜é€‚åº”ç»“æŸ
+                if(fit==0)        //fit¼õµ½ÁãËµÃ÷ÊÊÓ¦½áÊø
                 {
                     is_light=false;
                     fit=FIT;
-                    v_rgb=v_rgb;   //å¤åŸå­¦ä¹ é€Ÿåº¦
+                    v_rgb_n=v_rgb;   //¸´Ô­Ñ§Ï°ËÙ¶È
                     cout<<"light fit end !"<<endl;
                 }
             }
@@ -494,8 +494,8 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
             //del_isolated(rgb,dep);
             analysis(is_light,rgb,rgb_pre,dep,dep_pre,dst,S);
 
-            del_small(dst,dst);//åˆ é™¤å°çš„ç‚¹
-            imSmallHoles(dst,dst);//å¡«è¡¥å†…éƒ¨å°ç©ºæ´
+            del_small(dst,dst);//É¾³ıĞ¡µÄµã
+            imSmallHoles(dst,dst);//Ìî²¹ÄÚ²¿Ğ¡¿Õ¶´
             if(IS_SHOW)imshow("target",dst);
 
             if(IS_WRITE_TOFILE)
@@ -519,38 +519,41 @@ int add_depth_gmm_test(int delay_t,int scn,int start_pic,bool IS_WRITE_TOFILE,bo
     return 0;
 }
 
-void demo(int n)
-{
-    MyDemo m = MyDemo(1,200,500);
-    for(int i=m.start_num;i<=m.end_num;i++){
-        imshow("target",m.getPic(1));
-        imshow("rgb",m.getPic(2));
-        imshow("dep",m.getPic(3));
-        m.i++;
-        switch(waitKey(60))
-        {
-        //ç©ºæ ¼é”®æš‚åœ
-        case ' ':
-            waitKey(0);
-        default:
-            ;
-        }
-    }
-}
+void demo(int n,int s,int e,int delay)
+ {
+     MyDemo m = MyDemo(n,s,e);
+     MyPicStream mypic = MyPicStream(SC(n),1,s,e);
+     for(int i=m.start_num;i<=m.end_num;i++){
+         imshow("target",m.getPic(1));
+         imshow("rgb",m.getPic(2));
+         imshow("dep",m.getPic(3));
+         Mat src = mypic.getPic();
+         if(!src.empty())imshow("src",src);
+         m.i++;
+         switch(waitKey(delay))
+         {
+         //¿Õ¸ñ¼üÔİÍ£
+         case ' ':
+             waitKey(0);
+         default:
+             ;
+         }
+     }
+ }
 
 int main(int argc,char **argv)
 {
-    //æ˜¯å¦å†™åˆ°æ–‡ä»¶
-    //éœ€è¦å…ˆæ‰‹åŠ¨å»ºç«‹target<n>æ–‡ä»¶å¤¹å’Œtarget<n>/rgbä»¥åŠtarget<n>/depä¸¤ä¸ªå­æ–‡ä»¶å¤¹
-    //ä¸Šé¢çš„<n>æ›¿æ¢æˆç´ æç¼–å·æ¯”å¦‚target1
+    //ÊÇ·ñĞ´µ½ÎÄ¼ş
+    //ĞèÒªÏÈÊÖ¶¯½¨Á¢target<n>ÎÄ¼ş¼ĞºÍtarget<n>/rgbÒÔ¼°target<n>/depÁ½¸ö×ÓÎÄ¼ş¼Ğ
+    //ÉÏÃæµÄ<n>Ìæ»»³ÉËØ²Ä±àºÅ±ÈÈçtarget1
     const bool IS_WRITE_TOFILE = 1;
-    //æ˜¯å¦æ˜¾ç¤º
+    //ÊÇ·ñÏÔÊ¾
     const bool IS_SHOW = 0;
 
     int scn,start_pic;
     /**
-    * 3ä¸ªå‘½ä»¤è¡Œå‚æ•°
-    * å»¶æ—¶ï¼›ç¬¬å‡ ä¸ªç´ æï¼›ä»ç¬¬å‡ å¸§å¼€å§‹
+    * 3¸öÃüÁîĞĞ²ÎÊı
+    * ÑÓÊ±£»µÚ¼¸¸öËØ²Ä£»´ÓµÚ¼¸Ö¡¿ªÊ¼
     */
     if(argc>1) delay_t = atoi(argv[1]);
     else ;
@@ -562,39 +565,39 @@ int main(int argc,char **argv)
     //add_depth_gmm_test(delay_t,scn,start_pic,IS_WRITE_TOFILE,IS_SHOW,SCE_NOT_LIGHT);
     //add_depth_gmm_test(1,1,1,1,1,SCE_NORMAL,0.003);
     /*
-    * å¯¹4ä¸ªç´ æçš„å›¾ç‰‡å¤„ç†å¹¶ä¿å­˜åˆ°æ–‡ä»¶ä¸­
+    * ¶Ô4¸öËØ²ÄµÄÍ¼Æ¬´¦Àí²¢±£´æµ½ÎÄ¼şÖĞ
     */
-
+    //²ÎÊı£ºÑÓÊ±£¬µÚ¼¸¸öËØ²Ä£¬ÆğÊ¼Ö¡£¬Ğ´ÈëÎÄ¼ş£¿£¬ÏÔÊ¾£¿³¡¾°£¿rgbÑ§Ï°ËÙ¶È
     my_mkdir(1);
     my_mkdir(2);
     my_mkdir(3);
     my_mkdir(4);
-    add_depth_gmm_test(1,1,1,1,0,SCE_NORMAL,0.003);
+    add_depth_gmm_test(1,1,1,1,0,SCE_NORMAL,0.002);
     add_depth_gmm_test(1,2,1,1,0,SCE_NORMAL,0.003);
     add_depth_gmm_test(1,3,1,1,0,SCE_NORMAL,0.003);
     add_depth_gmm_test(1,4,1,1,0,SCE_NOT_LIGHT,0.001);
 /*
-    demo(1);
+    demo(1,200,500,70);
 */
     waitKey();
     return 0;
 }
 
-//ToDo :ä½¿ç”¨æ»‘å—æ¥æ§åˆ¶é€Ÿåº¦ä¸å…¶ä»–å‚æ•°
-//ToDo :å°çš„ç©ºæ´å¡«å……(OK)
-//ToDo :è½®å»“é‡åˆæ£€æµ‹(OK)
-//ToDo :æ·±åº¦å›¾å™ªå£°è¿‡å¤§(?)
-//ToDo :ç”Ÿæˆæ–‡ä»¶ä»¥åå†éå†æ–‡ä»¶ï¼Œå› ä¸ºä¸åŒæ¡ä»¶ä¸‹å¤„ç†é€Ÿåº¦ä¸ä¸€è‡´ï¼Œå½±å“è§‚å¯Ÿä½“éªŒ
-//Issue:è¾¹ç¼˜é—®é¢˜ï¼Œå±€éƒ¨å…‰ç…§/é˜´å½±
+//ToDo :Ê¹ÓÃ»¬¿éÀ´¿ØÖÆËÙ¶ÈÓëÆäËû²ÎÊı
+//ToDo :Ğ¡µÄ¿Õ¶´Ìî³ä(OK)
+//ToDo :ÂÖÀªÖØºÏ¼ì²â(OK)
+//ToDo :Éî¶ÈÍ¼ÔëÉù¹ı´ó(?)
+//ToDo :Éú³ÉÎÄ¼şÒÔºóÔÙ±éÀúÎÄ¼ş£¬ÒòÎª²»Í¬Ìõ¼şÏÂ´¦ÀíËÙ¶È²»Ò»ÖÂ£¬Ó°Ïì¹Û²ìÌåÑé
+//Issue:±ßÔµÎÊÌâ£¬¾Ö²¿¹âÕÕ/ÒõÓ°
 /*
 
-//æµç¨‹å›¾
+//Á÷³ÌÍ¼
 
                         +----------------------+
                         |                      |
-+--------------+        |     è°ƒæ•´å­¦ä¹ å‚æ•°     |
-|              |        |     åªä½¿ç”¨æ·±åº¦å›¾     |
-| å¤§é¢ç§¯å…‰ç…§?  +---+--->+                      |
++--------------+        |     µ÷ÕûÑ§Ï°²ÎÊı     |
+|              |        |     Ö»Ê¹ÓÃÉî¶ÈÍ¼     |
+| ´óÃæ»ı¹âÕÕ?  +---+--->+                      |
 |              |   |  Y |                      |
 +--------------+   |    +----------------------+
                    |
@@ -602,15 +605,15 @@ int main(int argc,char **argv)
                    |
                    |
                    |    +-----------------+         +------------------+
-                   |  N |    å¯»æ‰¾DEP_FG   |       Y |                  |
-                   +--->+    åˆ¤æ–­RGB_FG   +----+--->+      åˆ¤å®šFG      +
+                   |  N |    Ñ°ÕÒDEP_FG   |       Y |                  |
+                   +--->+    ÅĞ¶ÏRGB_FG   +----+--->+      ÅĞ¶¨FG      +
                         |                 |    |    |                  |
                         +-------+---------+    |    +------------------+
                                 |              |
                                 |              |
                                 |              |     +--------------------+       +----------------+
                                 |              |   N |                    |     Y |                |
-                                |              +---->+ åˆ¤æ–­DEP(t-1)èšé›†ç‚¹ +------>+   åˆ¤å®šFG       |
+                                |              +---->+ ÅĞ¶ÏDEP(t-1)¾Û¼¯µã +------>+   ÅĞ¶¨FG       |
                                 |                    |                    |       |                |
                                 |                    +--------------------+       +----------------+
                                 |
@@ -618,21 +621,21 @@ int main(int argc,char **argv)
                                 |
                                 |      +-----------------+         +----------------+
                                 |      |                 |         |                |
-                                |      |   å¯»æ‰¾RGB_FG    |      Y  |                |
-                                +----->+   åˆ¤æ–­DEP_FG    +--+----->+      åˆ¤å®šFG    +
+                                |      |   Ñ°ÕÒRGB_FG    |      Y  |                |
+                                +----->+   ÅĞ¶ÏDEP_FG    +--+----->+      ÅĞ¶¨FG    +
                                        |                 |  |      |                |
                                        +-----------------+  |      +----------------+
                                                             |
                                                             |
                                                             |     +-----------------+      +-----------------+
-                                                            |   N |1ã€å±€éƒ¨å…‰ç…§/é˜´å½± |    1 |                 |
-                                                            +-----+                 +---+-->     åˆ¤å®šBK      +
-                                                                  |2ã€é è¿‘å¢™å£      |   |  |                 |
+                                                            |   N |1¡¢¾Ö²¿¹âÕÕ/ÒõÓ° |    1 |                 |
+                                                            +-----+                 +---+-->     ÅĞ¶¨BK      +
+                                                                  |2¡¢¿¿½üÇ½±Ú      |   |  |                 |
                                                                   +-----------------+   |  +-----------------+
                                                                                         |
                                                                                         |
                                                                                         |  +-----------------+
-                                                                                        |  |   åˆ¤å®šFG        |
+                                                                                        |  |   ÅĞ¶¨FG        |
                                                                                         +-->                 |
                                                                                          2 +-----------------+
 
