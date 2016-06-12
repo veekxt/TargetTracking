@@ -322,7 +322,7 @@ void analysis(bool have_suddenly_light,Mat rgb,Mat rgb_pre,Mat dep,Mat dep_pre,M
                              {
                                 double distance = pointPolygonTest(contours[i_c],Point(j,i),true);
                                 //cout<<abs(distance)<<"<=distance"<<endl;
-                                if((distance >= 7.0))
+                                if((distance >= 9.8))
                                 {
                                     //cout<<"a point in edge !########"<<endl;
                                     //cout<<distance<<"-"<<i<<"-"<<j<<endl;
@@ -525,6 +525,7 @@ void demo(int n,int s,int e,int delay)
      MyPicStream mypic = MyPicStream(SC(n),1,s,e);
      for(int i=m.start_num;i<=m.end_num;i++){
          imshow("target",m.getPic(1));
+         cout<<"to "<<i<<" pic"<<endl;
          imshow("rgb",m.getPic(2));
          imshow("dep",m.getPic(3));
          Mat src = mypic.getPic();
@@ -549,7 +550,7 @@ int main(int argc,char **argv)
     const bool IS_WRITE_TOFILE = 1;
     //是否显示
     const bool IS_SHOW = 0;
-
+    bool is_demo = 1;
     int scn,start_pic;
     /**
     * 3个命令行参数
@@ -568,6 +569,11 @@ int main(int argc,char **argv)
     * 对4个素材的图片处理并保存到文件中
     */
     //参数：延时，第几个素材，起始帧，写入文件？，显示？场景？rgb学习速度
+    if(is_demo)
+    {
+        demo(1,200,500,70);
+        return 0;
+    }
     my_mkdir(1);
     my_mkdir(2);
     my_mkdir(3);
@@ -576,9 +582,9 @@ int main(int argc,char **argv)
     add_depth_gmm_test(1,2,1,1,0,SCE_NORMAL,0.003);
     add_depth_gmm_test(1,3,1,1,0,SCE_NORMAL,0.003);
     add_depth_gmm_test(1,4,1,1,0,SCE_NOT_LIGHT,0.001);
-/*
-    demo(1,200,500,70);
-*/
+
+
+
     waitKey();
     return 0;
 }
